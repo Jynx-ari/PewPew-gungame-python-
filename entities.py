@@ -23,17 +23,18 @@ class Bullet:
             pygame.draw.circle(screen, (255, 255, 255), screen_pos, 3)
 
 class Enemy:
-    def __init__(self, pos, stage):
+    def __init__(self, pos, stage, scaling=1.0):
         self.pos = pygame.Vector2(pos)
         self.vel = pygame.Vector2(0, 0)
+        self.scaling = scaling
         
         # Determine HP based on stage
         self.hp = 1
         if random.random() < STAGE_HP_CHANCE[stage]:
-            self.hp = random.randint(2, STAGE_MAX_HP[stage])
+            self.hp = int(random.randint(2, STAGE_MAX_HP[stage]) * scaling)
 
     def update(self, player_pos, stage):
-        current_enemy_speed = ENEMY_SPEED + (stage - 1) * STAGE_SPEED_BOOST
+        current_enemy_speed = (ENEMY_SPEED + (stage - 1) * STAGE_SPEED_BOOST) * self.scaling
         desired_vel = (player_pos - self.pos).normalize() * current_enemy_speed
         self.vel += (desired_vel - self.vel) * 0.05
         self.pos += self.vel

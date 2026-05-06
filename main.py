@@ -7,6 +7,7 @@ from entities import Bullet, Enemy, ExplosionEffect
 from ui import draw_hud, draw_menu, draw_tutorial, draw_game_over
 
 def main():
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
     pygame.init()
     pygame.mixer.init()
     
@@ -30,10 +31,13 @@ def main():
     checkpoint_sound = load_sound(SOUND_CHECKPOINT)
     sam_sound = load_sound(SOUND_SAM)
     if sam_sound:
-        sam_sound.set_volume(0.4) 
+        sam_sound.set_volume(SAM_VOLUME) 
     point_count_sound = load_sound(SOUND_POINT_COUNT)
-
+    pause_sound = load_sound(SOUND_PAUSE)
+    p_press_sound = load_sound(SOUND_P_PRESS)
+    
     # SAM Voice-overs
+
     sam_s1 = load_sound(SOUND_SAM_S1)
     sam_s2 = load_sound(SOUND_SAM_S2)
     sam_s3 = load_sound(SOUND_SAM_S3)
@@ -44,11 +48,11 @@ def main():
     
     # Set low volume for all SAM voices
     for s in [sam_s1, sam_s2, sam_s3, sam_s4, sam_s5_1, sam_s5_2, sam_win]:
-        if s: s.set_volume(0.4)
+        if s: s.set_volume(SAM_VOLUME)
     
     # Music initialization
     pygame.mixer.music.load(MUSIC_MAIN_MENU)
-    pygame.mixer.music.set_volume(0.5)
+    pygame.mixer.music.set_volume(MENU_VOLUME)
     pygame.mixer.music.play(-1)
 
     # Game State Variables
@@ -58,8 +62,7 @@ def main():
     bullets, enemies = [], []
     stars = [pygame.Vector2(random.randint(0, WIDTH), random.randint(0, HEIGHT)) for _ in range(150)]
     score, energy, shake, cooldown = 0, 100, 0, 0
-    explosion_ammo = 0
-    spread_ammo = 0
+    explosion_effects = []
     current_weapon = 0 
     weapon_names = ["NORMAL", "EXPLOSION", "SPREAD"]
     weapon_switch_cooldown = 0
@@ -80,6 +83,12 @@ def main():
     sam_s1_played = False
     sam_s5_part2_pending = False
     sam_s5_timer = 0
+    pause_menu_index = 0
+    pause_menu_options = ["QUIT", "MENU", "RETRY"]
+    game_over_menu_index = 0
+    game_over_menu_options = ["RETRY", "MENU", "QUIT"]
+    background_surface = None
+
     
     # Animation and FX variables
     animated_score = 0
@@ -95,63 +104,171 @@ def main():
                 if event.type == pygame.QUIT:
                     return
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_SPACE:
-                        if current_state == STATE_MENU:
-                            current_state = STATE_TUTORIAL
-                        elif current_state == STATE_TUTORIAL:
-                            pos = pygame.Vector2(0, 0)
-                            vel = pygame.Vector2(0, 0)
-                            enemies.clear()
-                            bullets.clear()
-                            score, energy, hp = 0, 100, 5
-                            explosion_ammo, spread_ammo = 0, 0
-                            invincibility_start_time = 0
-                            last_score_milestone = 0
-                            last_explosion_ammo_milestone = 0
-                            last_spread_ammo_milestone = 0
-                            explosion_start_granted = False
-                            spread_start_granted = False
-                            shield_is_disabled = False
-                            explosion_effects.clear()
-                            current_weapon = 0
-                            current_stage = 1
-                            game_start_time = pygame.time.get_ticks()
-                            game_timer = 0
-                            current_state = STATE_PLAYING
-                            sam_s1_played = False
-                            sam_s5_part2_pending = False
-                            sam_s5_timer = 0
-                            sam_s5_part2_pending = False
-                            sam_s5_timer = 0
-                        elif current_state == STATE_GAMEOVER:
-                            if not turn_off_trolls:
-                                print("[DEV] " + random.choice(TROLLS))
-                            pos = pygame.Vector2(0, 0)
-                            vel = pygame.Vector2(0, 0)
-                            enemies.clear()
-                            bullets.clear()
-                            score, energy, hp = 0, 100, 5
-                            explosion_ammo, spread_ammo = 0, 0
-                            invincibility_start_time = 0
-                            last_score_milestone = 0
-                            last_explosion_ammo_milestone = 0
-                            last_spread_ammo_milestone = 0
-                            explosion_start_granted = False
-                            spread_start_granted = False
-                            shield_is_disabled = False
-                            explosion_effects.clear()
-                            current_weapon = 0
-                            current_stage = 1
-                            game_start_time = pygame.time.get_ticks()
-                            game_timer = 0
-                            current_state = STATE_PLAYING
-                            sam_s1_played = False
-                    elif event.type == pygame.KEYDOWN and event.key == pygame.K_F11:
+                    if event.key == pygame.K_F11:
                         fullscreen = not fullscreen
                         screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN if fullscreen else 0)
+                    
+                    if current_state == STATE_MENU:
+                        if event.key == pygame.K_SPACE:
+                            current_state = STATE_DIFFICULTY
+                            menu_index = 0
+                    
+                    elif current_state == STATE_DIFFICULTY:
+                        if event.key == pygame.K_w or event.key == pygame.K_UP:
+                            menu_index = (menu_index - 1) % len(DIFFICULTIES)
+                        elif event.key == pygame.K_s or event.key == pygame.K_DOWN:
+                            menu_index = (menu_index + 1) % len(DIFFICULTIES)
+                        elif event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
+                            if DIFFICULTIES[menu_index] == "HARDCORE":
+                                current_state = STATE_HARDCORE_SELECT
+                                hardcore_index = 0
+                            else:
+                                selected_difficulty = DIFFICULTIES[menu_index]
+                                current_state = STATE_TUTORIAL
+                        elif event.key == pygame.K_ESCAPE:
+                            if point_count_sound: point_count_sound.stop()
+                            pygame.mixer.music.stop()
+                            music_playing = "STOPPED"
+                            current_state = STATE_MENU
+
+                    elif current_state == STATE_HARDCORE_SELECT:
+                        if event.key == pygame.K_w or event.key == pygame.K_UP:
+                            hardcore_index = (hardcore_index - 1) % len(HARDCORE_TIERS)
+                        elif event.key == pygame.K_s or event.key == pygame.K_DOWN:
+                            hardcore_index = (hardcore_index + 1) % len(HARDCORE_TIERS)
+                        elif event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
+                            selected_difficulty = HARDCORE_TIERS[hardcore_index]
+                            current_state = STATE_TUTORIAL
+                        elif event.key == pygame.K_ESCAPE:
+                            current_state = STATE_DIFFICULTY
+
+                    elif current_state == STATE_TUTORIAL:
+                        if event.key == pygame.K_SPACE:
+                            pos = pygame.Vector2(0, 0)
+                            vel = pygame.Vector2(0, 0)
+                            enemies.clear()
+                            bullets.clear()
+                            score, energy, hp = 0, 100, 5
+                            explosion_ammo, spread_ammo = 0, 0
+                            invincibility_start_time = 0
+                            last_score_milestone = 0
+                            last_explosion_ammo_milestone = 0
+                            last_spread_ammo_milestone = 0
+                            explosion_start_granted = False
+                            spread_start_granted = False
+                            shield_is_disabled = False
+                            explosion_effects.clear()
+                            current_weapon = 0
+                            current_stage = 1
+                            game_start_time = pygame.time.get_ticks()
+                            game_timer = 0
+                            current_state = STATE_PLAYING
+                            sam_s1_played = False
+                            sam_s5_part2_pending = False
+                            sam_s5_timer = 0
+                            if point_count_sound: point_count_sound.stop()
+
+                    elif current_state == STATE_PLAYING:
+                        if event.key == pygame.K_p:
+                            current_state = STATE_PAUSED
+                            pause_menu_index = 0
+                            if pause_sound: pause_sound.play()
+                            if p_press_sound: p_press_sound.play()
+
+                    elif current_state == STATE_PAUSED:
+                        if event.key == pygame.K_p:
+                            current_state = STATE_PLAYING
+                        elif event.key == pygame.K_ESCAPE:
+                            current_state = STATE_PLAYING
+                        elif event.key == pygame.K_w or event.key == pygame.K_UP:
+                            pause_menu_index = (pause_menu_index - 1) % len(pause_menu_options)
+                        elif event.key == pygame.K_s or event.key == pygame.K_DOWN:
+                            pause_menu_index = (pause_menu_index + 1) % len(pause_menu_options)
+                        elif event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
+                            if pause_menu_options[pause_menu_index] == "QUIT":
+                                pygame.quit()
+                                return
+                            elif pause_menu_options[pause_menu_index] == "MENU":
+                                if point_count_sound: point_count_sound.stop()
+                                pygame.mixer.music.stop()
+                                music_playing = "STOPPED"
+                                current_state = STATE_MENU
+                            elif pause_menu_options[pause_menu_index] == "RETRY":
+                                pos = pygame.Vector2(0, 0)
+                                vel = pygame.Vector2(0, 0)
+                                enemies.clear()
+                                bullets.clear()
+                                score, energy, hp = 0, 100, 5
+                                explosion_ammo, spread_ammo = 0, 0
+                                invincibility_start_time = 0
+                                last_score_milestone = 0
+                                last_explosion_ammo_milestone = 0
+                                last_spread_ammo_milestone = 0
+                                explosion_start_granted = False
+                                spread_start_granted = False
+                                shield_is_disabled = False
+                                explosion_effects.clear()
+                                current_weapon = 0
+                                current_stage = 1
+                                game_start_time = pygame.time.get_ticks()
+                                game_timer = 0
+                                current_state = STATE_PLAYING
+                                sam_s1_played = False
+                                sam_s5_part2_pending = False
+                                sam_s5_timer = 0
+                                if point_count_sound: point_count_sound.stop()
+
+                    elif current_state == STATE_GAMEOVER:
+                        if event.key == pygame.K_w or event.key == pygame.K_UP:
+                            game_over_menu_index = (game_over_menu_index - 1) % len(game_over_menu_options)
+                        elif event.key == pygame.K_s or event.key == pygame.K_DOWN:
+                            game_over_menu_index = (game_over_menu_index + 1) % len(game_over_menu_options)
+                        elif event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
+                            if game_over_menu_options[game_over_menu_index] == "RETRY":
+                                pos = pygame.Vector2(0, 0)
+                                vel = pygame.Vector2(0, 0)
+                                enemies.clear()
+                                bullets.clear()
+                                score, energy, hp = 0, 100, 5
+                                explosion_ammo, spread_ammo = 0, 0
+                                invincibility_start_time = 0
+                                last_score_milestone = 0
+                                last_explosion_ammo_milestone = 0
+                                last_spread_ammo_milestone = 0
+                                explosion_start_granted = False
+                                spread_start_granted = False
+                                shield_is_disabled = False
+                                explosion_effects.clear()
+                                current_weapon = 0
+                                current_stage = 1
+                                game_start_time = pygame.time.get_ticks()
+                                game_timer = 0
+                                current_state = STATE_PLAYING
+                                sam_s1_played = False
+                                sam_s5_part2_pending = False
+                                sam_s5_timer = 0
+                                if point_count_sound: point_count_sound.stop()
+                            elif game_over_menu_options[game_over_menu_index] == "MENU":
+                                if point_count_sound: point_count_sound.stop()
+                                pygame.mixer.music.stop()
+                                music_playing = "STOPPED"
+                                current_state = STATE_MENU
+
+                            elif game_over_menu_options[game_over_menu_index] == "QUIT":
+                                pygame.quit()
+                                return
+                        elif event.key == pygame.K_ESCAPE:
+                            if point_count_sound: point_count_sound.stop()
+                            pygame.mixer.music.stop()
+                            music_playing = "STOPPED"
+                            current_state = STATE_MENU
+
+
+
 
 
             if current_state == STATE_PLAYING:
+                scaling_factor = DIFFICULTY_SCALING.get(selected_difficulty, 1.0)
                 # Music management
                 if music_playing != "BG":
                     pygame.mixer.music.load(MUSIC_BG)
@@ -194,8 +311,8 @@ def main():
                     elif current_stage == 4 and sam_s4: sam_s4.play()
                     elif current_stage == 5:
                         if sam_s5_1: sam_s5_1.play()
-                        if sam_s5_2: 
-                            pygame.mixer.find_channel().play(sam_s5_2)
+                        sam_s5_part2_pending = True
+                        sam_s5_timer = pygame.time.get_ticks()
 
                 prev_stage = current_stage
 
@@ -203,6 +320,10 @@ def main():
                 if current_stage == 1 and not sam_s1_played and elapsed_time >= 1.5:
                     if sam_s1: sam_s1.play()
                     sam_s1_played = True
+                
+                if sam_s5_part2_pending and pygame.time.get_ticks() - sam_s5_timer >= 1500:
+                    if sam_s5_2: sam_s5_2.play()
+                    sam_s5_part2_pending = False
 
                 if stage_blink_timer > 0:
                     stage_blink_timer -= 1
@@ -352,10 +473,10 @@ def main():
                         else:
                             b.draw(screen, camera, shake_off)
 
-                if random.random() < 0.04 and len(enemies) < STAGE_ENEMY_CAPS[current_stage]:
+                if random.random() < 0.04 * scaling_factor and len(enemies) < STAGE_ENEMY_CAPS[current_stage]:
                     spawn_angle = random.uniform(0, math.pi * 2)
                     spawn_pos = pos + pygame.Vector2(math.cos(spawn_angle), math.sin(spawn_angle)) * 800
-                    enemies.append(Enemy(spawn_pos, current_stage))
+                    enemies.append(Enemy(spawn_pos, current_stage, scaling_factor))
 
                 for e in enemies[:]:
                     e.update(pos, current_stage)
@@ -429,6 +550,7 @@ def main():
                     last_score_milestone = score // 100
 
                 draw_hud(screen, font, score, hp, energy, current_weapon, weapon_names, explosion_ammo, spread_ammo, game_timer, current_stage, shield_is_disabled, blink=(stage_blink_timer > 0))
+                background_surface = screen.copy()
 
             elif current_state == STATE_MENU:
                 if music_playing != "MENU":
@@ -436,12 +558,24 @@ def main():
                     pygame.mixer.music.play(-1)
                     music_playing = "MENU"
                 draw_menu(screen, font)
+            elif current_state == STATE_DIFFICULTY:
+                from ui import draw_difficulty_menu
+                draw_difficulty_menu(screen, font, menu_index)
+            elif current_state == STATE_HARDCORE_SELECT:
+                from ui import draw_difficulty_menu
+                draw_difficulty_menu(screen, font, hardcore_index, is_hardcore=True)
             elif current_state == STATE_TUTORIAL:
                 if music_playing != "MENU":
                     pygame.mixer.music.load(MUSIC_MAIN_MENU)
                     pygame.mixer.music.play(-1)
                     music_playing = "MENU"
                 draw_tutorial(screen, font)
+            elif current_state == STATE_PAUSED:
+                if background_surface is not None:
+                    screen.blit(background_surface, (0, 0))
+                from ui import draw_blur, draw_pause_menu
+                draw_blur(screen)
+                draw_pause_menu(screen, font, pause_menu_index, pause_menu_options)
             elif current_state == STATE_GAMEOVER:
                 if music_playing != "MENU":
                     pygame.mixer.music.load(MUSIC_MAIN_MENU)
@@ -456,6 +590,9 @@ def main():
                         if point_count_sound: point_count_sound.stop()
                 
                 draw_game_over(screen, font, animated_score)
+                from ui import draw_game_over_menu
+                draw_game_over_menu(screen, font, game_over_menu_index, game_over_menu_options)
+
 
             pygame.display.flip()
             clock.tick(FPS)

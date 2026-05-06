@@ -5,53 +5,8 @@ WIDTH, HEIGHT  = 1000, 800
 FPS            = 60
 
 SCORE_PER_KILL = 2
+TURN_OFF_TROLLS = False
 
-# Physics and Movement
-SPEED_NORMAL   = 0.7    
-FRICTION       = 0.93   
-RECOIL         = 2.0    
-CAM_SMOOTHING  = 0.05    
-BULLET_SPEED   = 18.0
-
-# Weapon Fire Rates
-FIRE_RATE_NORMAL = 10
-FIRE_RATE_EXPLOSION = 60  # Very slow
-FIRE_RATE_SPREAD = 40    # Half of explosion
-SPREAD_BULLET_COUNT = 10 # Number of bullets in spread shot
-
-# Shield Settings
-SHIELD_DRAIN   = 0.5
-SHIELD_REGEN   = 0.4
-
-# Enemy Settings
-ENEMY_SPEED    = 2.0
-SHAKE_POWER    = 8.0
-
-# Weapon Ammo Settings
-EXPLOSION_AMMO_START = 5
-EXPLOSION_AMMO_PER_KILL_MILESTONE = 25 # 5 kills * 5 pts
-EXPLOSION_AMMO_REGEN_AMOUNT = 1
-
-SPREAD_AMMO_START = 3
-SPREAD_AMMO_PER_KILL_MILESTONE = 75 # 15 kills * 5 pts
-SPREAD_AMMO_REGEN_AMOUNT = 4
-
-# Stage Configuration
-STAGE_DURATION = 120 # 2 minutes
-MAX_STAGE = 5
-STAGE_ENEMY_CAPS = {1: 20, 2: 30, 3: 40, 4: 50, 5: 60}
-STAGE_SPEED_BOOST = 0.6 
-STAGE_HP_CHANCE = {1: 0, 2: 0.2, 3: 0.4, 4: 0.6, 5: 0.8} 
-STAGE_MAX_HP = {1: 1, 2: 2, 3: 3, 4: 5, 5: 8}
-
-# Game States
-STATE_MENU = "MENU"
-STATE_TUTORIAL = "TUTORIAL"
-STATE_PLAYING = "PLAYING"
-STATE_GAMEOVER = "GAMEOVER"
-
-# Trolls
-turn_off_trolls = False
 TROLLS = [  
     "If I were you buddy, I'd quit.", 
     "Oh? Your back at it again.", 
@@ -76,6 +31,69 @@ TROLLS = [
     "You're the reason I'm considering a career change."
 ]
 
+
+# Physics and Movement
+SPEED_NORMAL   = 0.7    
+FRICTION       = 0.93   
+RECOIL         = 2.0    
+CAM_SMOOTHING  = 0.05    
+BULLET_SPEED   = 18.0
+
+# Weapon Fire Rates
+FIRE_RATE_NORMAL = 10
+FIRE_RATE_EXPLOSION = 60  # Very slow
+FIRE_RATE_SPREAD = 40    # Half of explosion
+SPREAD_BULLET_COUNT = 10 # Number of bullets in spread shot
+
+# Shield Settings
+SHIELD_DRAIN   = 0.5
+SHIELD_REGEN   = 0.4
+
+# Enemy Settings
+ENEMY_SPEED    = 2.0
+SHAKE_POWER    = 8.0
+
+
+# Weapon Ammo Settings
+EXPLOSION_AMMO_START = 5
+EXPLOSION_AMMO_PER_KILL_MILESTONE = 25 # 5 kills * 5 pts
+EXPLOSION_AMMO_REGEN_AMOUNT = 1
+
+SPREAD_AMMO_START = 3
+SPREAD_AMMO_PER_KILL_MILESTONE = 75 # 15 kills * 5 pts
+SPREAD_AMMO_REGEN_AMOUNT = 4
+
+# Stage Configuration
+STAGE_DURATION = 120 # 20s for testing | 2 minutes
+MAX_STAGE = 5
+STAGE_ENEMY_CAPS = {1: 20, 2: 30, 3: 40, 4: 50, 5: 60}
+STAGE_SPEED_BOOST = 0.6 
+STAGE_HP_CHANCE = {1: 0, 2: 0.2, 3: 0.4, 4: 0.6, 5: 0.8} 
+STAGE_MAX_HP = {1: 1, 2: 2, 3: 3, 4: 5, 5: 8}
+
+# Game States
+STATE_MENU = "MENU"
+STATE_DIFFICULTY = "DIFFICULTY"
+STATE_HARDCORE_SELECT = "HARDCORE_SELECT"
+STATE_TUTORIAL = "TUTORIAL"
+STATE_PLAYING = "PLAYING"
+STATE_PAUSED = "PAUSED"
+STATE_GAMEOVER = "GAMEOVER"
+
+# Difficulty Settings
+DIFFICULTIES = ["EASY", "NORMAL", "HARDCORE"]
+HARDCORE_TIERS = ["BRUTAL", "INSANE", "NIGHTMARE", "EXTINCTION"]
+
+# Scaling factors (to be multiplied based on selection)
+DIFFICULTY_SCALING = {
+    "EASY": 0.7,
+    "NORMAL": 1.0,
+    "BRUTAL": 1.5,
+    "INSANE": 2.0,
+    "NIGHTMARE": 3.0,
+    "EXTINCTION": 5.0
+}
+
 # Sound Paths
 SOUND_FIRE = "fire.wav"
 SOUND_SCORE = "Score.wav"
@@ -85,6 +103,8 @@ SOUND_DAMAGE = "healthdamage.wav"
 SOUND_CHECKPOINT = "Checkpoint.wav"
 SOUND_SAM = "sam.wav"
 SOUND_POINT_COUNT = "Point_Count[loop].wav"
+SOUND_PAUSE = "pause.wav"
+SOUND_P_PRESS = "p_press.wav"
 
 # SAM Voice-overs
 SOUND_SAM_S1 = "S.A.M/STAGE ONE.wav"
@@ -95,6 +115,9 @@ SOUND_SAM_S5_PART1 = "S.A.M/stage.wav"
 SOUND_SAM_S5_PART2 = "S.A.M/five.wav"
 SOUND_SAM_WIN = "S.A.M/you win.wav"
 
+SAM_VOLUME = 0.65
+
 MUSIC_MAIN_MENU = "mainmenu.mp3"
 MUSIC_BG = "bg music.mp3"
+MENU_VOLUME = 0.5
 
