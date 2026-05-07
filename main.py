@@ -11,7 +11,9 @@ def main():
     pygame.init()
     pygame.mixer.init()
     
+    # Create window
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    
     pygame.display.set_caption("PEW PEW MANIA!")
     clock = pygame.time.Clock()
     font = pygame.font.SysFont("Consolas", 22, bold=True)
@@ -35,6 +37,7 @@ def main():
     point_count_sound = load_sound(SOUND_POINT_COUNT)
     pause_sound = load_sound(SOUND_PAUSE)
     p_press_sound = load_sound(SOUND_P_PRESS)
+    bang_sound = load_sound(SOUND_BANG)
     
     # SAM Voice-overs
 
@@ -66,7 +69,7 @@ def main():
     current_weapon = 0 
     weapon_names = ["NORMAL", "EXPLOSION", "SPREAD"]
     weapon_switch_cooldown = 0
-    hp = 5
+    hp = LIVES
     invincibility_start_time = 0
     invincibility_duration = 2500 
     last_score_milestone = 0
@@ -88,6 +91,12 @@ def main():
     game_over_menu_index = 0
     game_over_menu_options = ["RETRY", "MENU", "QUIT"]
     background_surface = None
+    death_sequence_start_time = 0
+    game_over_fade_start_time = 0
+    static_surface = pygame.Surface((WIDTH, HEIGHT))
+    static_overlay = pygame.Surface((WIDTH, HEIGHT))
+    static_overlay.set_alpha(150)
+    static_overlay.fill((0, 0, 0))
 
     
     # Animation and FX variables
@@ -104,6 +113,8 @@ def main():
                 if event.type == pygame.QUIT:
                     return
                 if event.type == pygame.KEYDOWN:
+                    # Debug: print key press
+                    # print(f"Key pressed: {event.key} | State: {current_state}")
                     if event.key == pygame.K_F11:
                         fullscreen = not fullscreen
                         screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN if fullscreen else 0)
@@ -130,7 +141,7 @@ def main():
                             pygame.mixer.music.stop()
                             music_playing = "STOPPED"
                             current_state = STATE_MENU
-
+                    
                     elif current_state == STATE_HARDCORE_SELECT:
                         if event.key == pygame.K_w or event.key == pygame.K_UP:
                             hardcore_index = (hardcore_index - 1) % len(HARDCORE_TIERS)
@@ -141,14 +152,14 @@ def main():
                             current_state = STATE_TUTORIAL
                         elif event.key == pygame.K_ESCAPE:
                             current_state = STATE_DIFFICULTY
-
+                    
                     elif current_state == STATE_TUTORIAL:
                         if event.key == pygame.K_SPACE:
                             pos = pygame.Vector2(0, 0)
                             vel = pygame.Vector2(0, 0)
                             enemies.clear()
                             bullets.clear()
-                            score, energy, hp = 0, 100, 5
+                            score, energy, hp = 0, 100, LIVES
                             explosion_ammo, spread_ammo = 0, 0
                             invincibility_start_time = 0
                             last_score_milestone = 0
@@ -167,6 +178,140 @@ def main():
                             sam_s5_part2_pending = False
                             sam_s5_timer = 0
                             if point_count_sound: point_count_sound.stop()
+                    
+                    elif current_state == STATE_PLAYING:
+                        if event.key == pygame.K_p:
+                            current_state = STATE_PAUSED
+                            pause_menu_index = 0
+                            if pause_sound: pause_sound.play()
+                            if p_press_sound: p_press_sound.play()
+                    
+                    elif current_state == STATE_PAUSED:
+                        if event.key == pygame.K_p:
+                            current_state = STATE_PLAYING
+                        elif event.key == pygame.K_ESCAPE:
+                            current_state = STATE_PLAYING
+                        elif event.key == pygame.K_w or event.key == pygame.K_UP:
+                            pause_menu_index = (pause_menu_index - 1) % len(pause_menu_options)
+                        elif event.key == pygame.K_s or event.key == pygame.K_DOWN:
+                            pause_menu_index = (pause_menu_index + 1) % len(pause_menu_options)
+                        elif event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
+                            if pause_menu_options[pause_menu_index] == "QUIT":
+                                pygame.quit()
+                                return
+                            elif pause_menu_options[pause_menu_index] == "MENU":
+                                if point_count_sound: point_count_sound.stop()
+                                pygame.mixer.music.stop()
+                                music_playing = "STOPPED"
+                                current_state = STATE_MENU
+                            elif pause_menu_options[pause_menu_index] == "RETRY":
+                                pos = pygame.Vector2(0, 0)
+                                vel = pygame.Vector2(0, 0)
+                                enemies.clear()
+                                bullets.clear()
+                                score, energy, hp = 0, 100, LIVES
+                                explosion_ammo, spread_ammo = 0, 0
+                                invincibility_start_time = 0
+                                last_score_milestone = 0
+                                last_explosion_ammo_milestone = 0
+                                last_spread_ammo_milestone = 0
+                                explosion_start_granted = False
+                                spread_start_granted = False
+                                shield_is_disabled = False
+                                explosion_effects.clear()
+                                current_weapon = 0
+                                current_stage = 1
+                                game_start_time = pygame.time.get_ticks()
+                                game_timer = 0
+                                current_state = STATE_PLAYING
+                                sam_s1_played = False
+                                sam_s5_part2_pending = False
+                                sam_s5_timer = 0
+                                if point_count_sound: point_count_sound.stop()
+                    
+                    elif current_state == STATE_GAMEOVER:
+                        if event.key == pygame.K_w or event.key == pygame.K_UP:
+                            game_over_menu_index = (game_over_menu_index - 1) % len(game_over_menu_options)
+                        elif event.key == pygame.K_s or event.key == pygame.K_DOWN:
+                            game_over_menu_index = (game_over_menu_index + 1) % len(game_over_menu_options)
+                        elif event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
+                            if game_over_menu_options[game_over_menu_index] == "RETRY":
+                                pos = pygame.Vector2(0, 0)
+                                vel = pygame.Vector2(0, 0)
+                                enemies.clear()
+                                bullets.clear()
+                                score, energy, hp = 0, 100, LIVES
+                                explosion_ammo, spread_ammo = 0, 0
+                                invincibility_start_time = 0
+                                last_score_milestone = 0
+                                last_explosion_ammo_milestone = 0
+                                last_spread_ammo_milestone = 0
+                                explosion_start_granted = False
+                                spread_start_granted = False
+                                shield_is_disabled = False
+                                explosion_effects.clear()
+                                current_weapon = 0
+                                current_stage = 1
+                                game_start_time = pygame.time.get_ticks()
+                                game_timer = 0
+                                current_state = STATE_PLAYING
+                                sam_s1_played = False
+                                sam_s5_part2_pending = False
+                                sam_s5_timer = 0
+                                if point_count_sound: point_count_sound.stop()
+                            elif game_over_menu_options[game_over_menu_index] == "MENU":
+                                if point_count_sound: point_count_sound.stop()
+                                pygame.mixer.music.stop()
+                                music_playing = "STOPPED"
+                                current_state = STATE_MENU
+                            
+                            elif game_over_menu_options[game_over_menu_index] == "QUIT":
+                                pygame.quit()
+                                return
+                        elif event.key == pygame.K_ESCAPE:
+                            if point_count_sound: point_count_sound.stop()
+                            pygame.mixer.music.stop()
+                            music_playing = "STOPPED"
+                            current_state = STATE_MENU
+
+                    elif current_state == STATE_HARDCORE_SELECT:
+                        if event.key == pygame.K_w or event.key == pygame.K_UP:
+                            hardcore_index = (hardcore_index - 1) % len(HARDCORE_TIERS)
+                        elif event.key == pygame.K_s or event.key == pygame.K_DOWN:
+                            hardcore_index = (hardcore_index + 1) % len(HARDCORE_TIERS)
+                        elif event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
+                            selected_difficulty = HARDCORE_TIERS[hardcore_index]
+                            current_state = STATE_TUTORIAL
+                        elif event.key == pygame.K_ESCAPE:
+                            current_state = STATE_DIFFICULTY
+
+                    elif current_state == STATE_TUTORIAL:
+                        if event.key == pygame.K_SPACE:
+                            pos = pygame.Vector2(0, 0)
+                            vel = pygame.Vector2(0, 0)
+                            enemies.clear()
+                            bullets.clear()
+                            score, energy, hp = 0, 100, LIVES
+                            explosion_ammo, spread_ammo = 0, 0
+                            invincibility_start_time = 0
+                            last_score_milestone = 0
+                            last_explosion_ammo_milestone = 0
+                            last_spread_ammo_milestone = 0
+                            explosion_start_granted = False
+                            spread_start_granted = False
+                            shield_is_disabled = False
+                            explosion_effects.clear()
+                            current_weapon = 0
+                            current_stage = 1
+                            game_start_time = pygame.time.get_ticks()
+                            game_timer = 0
+                            current_state = STATE_PLAYING
+                            sam_s1_played = False
+                            sam_s5_part2_pending = False
+                            sam_s5_timer = 0
+                            if point_count_sound: point_count_sound.stop()
+
+
 
                     elif current_state == STATE_PLAYING:
                         if event.key == pygame.K_p:
@@ -198,7 +343,7 @@ def main():
                                 vel = pygame.Vector2(0, 0)
                                 enemies.clear()
                                 bullets.clear()
-                                score, energy, hp = 0, 100, 5
+                                score, energy, hp = 0, 100, LIVES
                                 explosion_ammo, spread_ammo = 0, 0
                                 invincibility_start_time = 0
                                 last_score_milestone = 0
@@ -218,6 +363,7 @@ def main():
                                 sam_s5_timer = 0
                                 if point_count_sound: point_count_sound.stop()
 
+
                     elif current_state == STATE_GAMEOVER:
                         if event.key == pygame.K_w or event.key == pygame.K_UP:
                             game_over_menu_index = (game_over_menu_index - 1) % len(game_over_menu_options)
@@ -229,7 +375,7 @@ def main():
                                 vel = pygame.Vector2(0, 0)
                                 enemies.clear()
                                 bullets.clear()
-                                score, energy, hp = 0, 100, 5
+                                score, energy, hp = 0, 100, LIVES
                                 explosion_ammo, spread_ammo = 0, 0
                                 invincibility_start_time = 0
                                 last_score_milestone = 0
@@ -267,6 +413,7 @@ def main():
 
 
 
+
             if current_state == STATE_PLAYING:
                 scaling_factor = DIFFICULTY_SCALING.get(selected_difficulty, 1.0)
                 # Music management
@@ -292,9 +439,11 @@ def main():
                 if current_stage > MAX_STAGE:
                     if sam_win: sam_win.play()
                     current_state = STATE_GAMEOVER
+                    game_over_fade_start_time = pygame.time.get_ticks()
                     animated_score = 0
-                    if point_count_sound: point_count_sound.play(-1)
+                    if point_count_sound and score > 0: point_count_sound.play(-1)
                     score_animation_speed = max(2, score // 150) if score > 500 else 2
+
                 
                 # Handle stage transition
                 if 'prev_stage' not in locals():
@@ -426,11 +575,15 @@ def main():
                                         if nearby_e.pos.distance_to(pos) < 200:
                                             nearby_e.vel = (nearby_e.pos - pos).normalize() * 30
                                     if hp <= 0: 
-                                        if sam_sound: sam_sound.play()
-                                        current_state = STATE_GAMEOVER
-                                        animated_score = 0
-                                        score_animation_speed = max(2, score // 150) if score > 500 else 2
-                                        if point_count_sound: point_count_sound.play(-1)
+                                         pygame.mixer.stop()
+                                         pygame.mixer.music.stop()
+                                         if sam_sound: sam_sound.play()
+                                         current_state = STATE_DEATH_SEQUENCE
+                                         if damage_sound: damage_sound.play()
+                                         death_sequence_start_time = pygame.time.get_ticks()
+                                         if bang_sound: bang_sound.play()
+
+
                                 shake = SHAKE_POWER
                                 break
                     elif any(e.pos.distance_to(b.pos) < 20 for e in enemies):
@@ -463,11 +616,14 @@ def main():
                                         if nearby_e.pos.distance_to(pos) < 200:
                                             nearby_e.vel = (nearby_e.pos - pos).normalize() * 30
                                     if hp <= 0: 
-                                        if sam_sound: sam_sound.play()
-                                        current_state = STATE_GAMEOVER
-                                        animated_score = 0
-                                        score_animation_speed = max(2, score // 150) if score > 500 else 2
-                                        if point_count_sound: point_count_sound.play(-1)
+                                         pygame.mixer.stop()
+                                         pygame.mixer.music.stop()
+                                         if sam_sound: sam_sound.play()
+                                         current_state = STATE_DEATH_SEQUENCE
+                                         death_sequence_start_time = pygame.time.get_ticks()
+                                         if bang_sound: bang_sound.play()
+
+
                                 shake = SHAKE_POWER
                             bullets.remove(b)
                         else:
@@ -494,12 +650,15 @@ def main():
                             for nearby_e in enemies[:]:
                                 if nearby_e.pos.distance_to(pos) < 200:
                                     nearby_e.vel = (nearby_e.pos - pos).normalize() * 30
-                            if hp <= 0: 
-                                if sam_sound: sam_sound.play()
-                                current_state = STATE_GAMEOVER
-                                animated_score = 0
-                                score_animation_speed = max(2, score // 150) if score > 500 else 2
-                                if point_count_sound: point_count_sound.play(-1)
+                                    if hp <= 0: 
+                                         pygame.mixer.stop()
+                                         pygame.mixer.music.stop()
+                                         #if sam_sound: sam_sound.play()
+                                         current_state = STATE_DEATH_SEQUENCE
+                                         death_sequence_start_time = pygame.time.get_ticks()
+                                         if bang_sound: bang_sound.play()
+
+
 
                 draw_pos = pos - camera + shake_off
                 should_draw = True
@@ -508,8 +667,8 @@ def main():
                 if should_draw:
                     if is_shielding: pygame.draw.circle(screen, (255, 180, 0), draw_pos, 45, 2)
                     pygame.draw.polygon(screen, current_color, [draw_pos + pygame.Vector2(30, 0).rotate(angle), 
-                                                                  draw_pos + pygame.Vector2(-15, 15).rotate(angle), 
-                                                                  draw_pos + pygame.Vector2(-15, -15).rotate(angle)])
+                                                                   draw_pos + pygame.Vector2(-15, 15).rotate(angle), 
+                                                                   draw_pos + pygame.Vector2(-15, -15).rotate(angle)])
 
                 if current_weapon == 1 and not is_shielding:
                     radius_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -576,7 +735,89 @@ def main():
                 from ui import draw_blur, draw_pause_menu
                 draw_blur(screen)
                 draw_pause_menu(screen, font, pause_menu_index, pause_menu_options)
+            elif current_state == STATE_DEATH_SEQUENCE:
+                # TV Static Effect
+                current_time = pygame.time.get_ticks()
+                elapsed = current_time - death_sequence_start_time
+                
+                static_surface.fill((0, 0, 0))
+                is_flashing = False
+                
+                # Glitch intensity is on config.py as DEATH_SEQUENCE_START_GLITCH, but we want to control it dynamically based on time elapsed in the death sequence
+                glitch_intensity = 0
+                if elapsed > DEATH_SEQUENCE_START_GLITCH:
+                    base_ramp = min(1.0, (elapsed - DEATH_SEQUENCE_START_GLITCH) / (GAMEOVER_TIMESHOW - DEATH_SEQUENCE_START_GLITCH  ))
+                    noise = random.uniform(-0.2, 0.2) if random.random() < 0.3 else 0
+                    glitch_intensity = max(0, min(1.0, base_ramp + noise))
+                
+                # 1. Base static - Lowest Layer
+                static_count = 3000 + int(8000 * glitch_intensity)
+                for _ in range(static_count):
+                    color = random.randint(0, 180)
+                    pygame.draw.rect(static_surface, (color, color, color), 
+                                     (random.randint(0, WIDTH), random.randint(0, HEIGHT), 2, 2))
+                
+                # 2. Glitches - Middle Layer (In front of static, but behind the flash)
+                if glitch_intensity > 0:
+                    num_blocks = int(150 * glitch_intensity)
+                    for _ in range(num_blocks):
+                        color = random.choice([(0, 0, 0), (255, 0, 0), (0, 255, 0), (0, 0, 255)])
+                        w = random.randint(10, 500)
+                        h = random.randint(2, 80)
+                        pygame.draw.rect(static_surface, color, 
+                                         (random.randint(-200, WIDTH), random.randint(-200, HEIGHT), w, h))
+                
+                # 3. White Flash - Top Layer (Covers everything)
+                if elapsed > DEATH_SEQUENCE_START_FLASH:
+                    t_rel = (elapsed - DEATH_SEQUENCE_START_FLASH) / (GAMEOVER_TIMESHOW - DEATH_SEQUENCE_START_FLASH)
+                    flash_prob = t_rel**2
+                    if random.random() < flash_prob:
+                        is_flashing = True
+
+                
+                # Rapid, jittery screen shift
+                shift_range = int(120 * glitch_intensity)
+                offset_x = random.randint(-shift_range, shift_range) if shift_range > 0 else 0
+                offset_y = random.randint(-shift_range, shift_range) if shift_range > 0 else 0
+                
+                if is_flashing:
+                    screen.fill((255, 255, 255))
+                else:
+                    screen.blit(static_surface, (offset_x, offset_y))
+                    screen.blit(static_overlay, (offset_x, offset_y))
+
+
+                if elapsed >= GAMEOVER_TIMESHOW:
+                    if sam_sound: sam_sound.play()
+                    current_state = STATE_GAMEOVER
+                    game_over_fade_start_time = pygame.time.get_ticks()
+                    animated_score = 0
+                    score_animation_speed = max(2, score // 150) if score > 500 else 2
+                    if point_count_sound and score > 0: point_count_sound.play(-1)
+
+
+
+
+
+
+
             elif current_state == STATE_GAMEOVER:
+                # Transition: White -> Red -> Black
+                elapsed_go = pygame.time.get_ticks() - game_over_fade_start_time
+                fade_duration = 3000 
+                t = min(1.0, elapsed_go / fade_duration)
+                
+                if t < 0.2:
+                    # White to Red (Fast transition)
+                    local_t = t / 0.2
+                    bg_color = (255, int(255 * (1 - local_t)), int(255 * (1 - local_t)))
+                else:
+                    # Red to Black (Slower fade)
+                    local_t = (t - 0.2) / 0.8
+                    bg_color = (int(255 * (1 - local_t)), 0, 0)
+                
+                screen.fill(bg_color)
+
                 if music_playing != "GAMEOVER":
                     pygame.mixer.music.load(MUSIC_GAMEOVER)
                     pygame.mixer.music.play(-1)
@@ -598,9 +839,11 @@ def main():
             clock.tick(FPS)
     except Exception as e:
         print(f"ERROR: {e}")
+        print("Contact the Dev lol XD")
     finally:
         pygame.quit()
         print("Game closed.")
+
 
 if __name__ == "__main__":
     main()

@@ -6,6 +6,11 @@ FPS            = 60
 
 SCORE_PER_KILL = 2
 TURN_OFF_TROLLS = False
+LIVES = 1
+DEATH_SEQUENCE_GLITCH_INTENSITY = 0.8
+GAMEOVER_TIMESHOW = 8000
+DEATH_SEQUENCE_START_GLITCH = 4000
+DEATH_SEQUENCE_START_FLASH = 5000
 
 TROLLS = [  
     "If I were you buddy, I'd quit.", 
@@ -39,7 +44,7 @@ RECOIL         = 2.0
 CAM_SMOOTHING  = 0.05    
 BULLET_SPEED   = 18.0
 
-# Weapon Fire Rates
+# BASE Weapon Fire Rates
 FIRE_RATE_NORMAL = 10
 FIRE_RATE_EXPLOSION = 60  # Very slow
 FIRE_RATE_SPREAD = 40    # Half of explosion
@@ -79,6 +84,7 @@ STATE_TUTORIAL = "TUTORIAL"
 STATE_PLAYING = "PLAYING"
 STATE_PAUSED = "PAUSED"
 STATE_GAMEOVER = "GAMEOVER"
+STATE_DEATH_SEQUENCE = "DEATH_SEQUENCE"
 
 # Difficulty Settings
 DIFFICULTIES = ["EASY", "NORMAL", "HARDCORE"]
@@ -105,6 +111,7 @@ SOUND_SAM = "sam.wav"
 SOUND_POINT_COUNT = "Point_Count[loop].wav"
 SOUND_PAUSE = "pause.wav"
 SOUND_P_PRESS = "p_press.wav"
+SOUND_BANG = "bang.wav"
 
 # SAM Voice-overs
 SOUND_SAM_S1 = "S.A.M/STAGE ONE.wav"
