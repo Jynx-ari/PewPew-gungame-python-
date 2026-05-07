@@ -119,5 +119,6 @@ SAM_VOLUME = 0.65
 
 MUSIC_MAIN_MENU = "mainmenu.mp3"
 MUSIC_BG = "bg music.mp3"
+MUSIC_GAMEOVER = "deathscreen.mp3"
 MENU_VOLUME = 0.5
 

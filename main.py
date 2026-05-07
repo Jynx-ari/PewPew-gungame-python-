@@ -577,10 +577,10 @@ def main():
                 draw_blur(screen)
                 draw_pause_menu(screen, font, pause_menu_index, pause_menu_options)
             elif current_state == STATE_GAMEOVER:
-                if music_playing != "MENU":
-                    pygame.mixer.music.load(MUSIC_MAIN_MENU)
+                if music_playing != "GAMEOVER":
+                    pygame.mixer.music.load(MUSIC_GAMEOVER)
                     pygame.mixer.music.play(-1)
-                    music_playing = "MENU"
+                    music_playing = "GAMEOVER"
                 
                 # Score animation
                 if animated_score < score:
