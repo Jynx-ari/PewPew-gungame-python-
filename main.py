@@ -3,7 +3,7 @@ import math
 import random
 import os
 from config import *
-from entities import Bullet, Enemy, ExplosionEffect
+from entities import Bullet, Enemy, Boss, ExplosionEffect
 from ui import draw_hud, draw_menu, draw_tutorial, draw_game_over
 
 def main():
@@ -82,7 +82,12 @@ def main():
     current_stage = 1
     game_start_time = 0
     game_timer = 0
+    total_pause_duration = 0
+    pause_start_time = 0
     current_state = STATE_MENU
+    current_boss = None
+    is_boss_fight = False
+    boss_start_time = 0
     sam_s1_played = False
     sam_s5_part2_pending = False
     sam_s5_timer = 0
@@ -90,6 +95,9 @@ def main():
     pause_menu_options = ["QUIT", "MENU", "RETRY"]
     game_over_menu_index = 0
     game_over_menu_options = ["RETRY", "MENU", "QUIT"]
+    menu_index = 0
+    hardcore_index = 0
+    bits = 0
     background_surface = None
     death_sequence_start_time = 0
     game_over_fade_start_time = 0
@@ -171,9 +179,15 @@ def main():
                             explosion_effects.clear()
                             current_weapon = 0
                             current_stage = 1
+                            is_boss_fight = False
+                            current_boss = None
+                            boss_start_time = 0
                             game_start_time = pygame.time.get_ticks()
                             game_timer = 0
+                            total_pause_duration = 0
+                            pause_start_time = 0
                             current_state = STATE_PLAYING
+                            invincibility_start_time = pygame.time.get_ticks()
                             sam_s1_played = False
                             sam_s5_part2_pending = False
                             sam_s5_timer = 0
@@ -183,14 +197,17 @@ def main():
                         if event.key == pygame.K_p:
                             current_state = STATE_PAUSED
                             pause_menu_index = 0
+                            pause_start_time = pygame.time.get_ticks()
                             if pause_sound: pause_sound.play()
                             if p_press_sound: p_press_sound.play()
                     
                     elif current_state == STATE_PAUSED:
                         if event.key == pygame.K_p:
                             current_state = STATE_PLAYING
+                            total_pause_duration += pygame.time.get_ticks() - pause_start_time
                         elif event.key == pygame.K_ESCAPE:
                             current_state = STATE_PLAYING
+                            total_pause_duration += pygame.time.get_ticks() - pause_start_time
                         elif event.key == pygame.K_w or event.key == pygame.K_UP:
                             pause_menu_index = (pause_menu_index - 1) % len(pause_menu_options)
                         elif event.key == pygame.K_s or event.key == pygame.K_DOWN:
@@ -221,9 +238,15 @@ def main():
                                 explosion_effects.clear()
                                 current_weapon = 0
                                 current_stage = 1
+                                is_boss_fight = False
+                                current_boss = None
+                                boss_start_time = 0
                                 game_start_time = pygame.time.get_ticks()
                                 game_timer = 0
+                                total_pause_duration = 0
+                                pause_start_time = 0
                                 current_state = STATE_PLAYING
+                                invincibility_start_time = pygame.time.get_ticks()
                                 sam_s1_played = False
                                 sam_s5_part2_pending = False
                                 sam_s5_timer = 0
@@ -235,37 +258,43 @@ def main():
                         elif event.key == pygame.K_s or event.key == pygame.K_DOWN:
                             game_over_menu_index = (game_over_menu_index + 1) % len(game_over_menu_options)
                         elif event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
-                            if game_over_menu_options[game_over_menu_index] == "RETRY":
-                                pos = pygame.Vector2(0, 0)
-                                vel = pygame.Vector2(0, 0)
-                                enemies.clear()
-                                bullets.clear()
-                                score, energy, hp = 0, 100, LIVES
-                                explosion_ammo, spread_ammo = 0, 0
-                                invincibility_start_time = 0
-                                last_score_milestone = 0
-                                last_explosion_ammo_milestone = 0
-                                last_spread_ammo_milestone = 0
-                                explosion_start_granted = False
-                                spread_start_granted = False
-                                shield_is_disabled = False
-                                explosion_effects.clear()
-                                current_weapon = 0
-                                current_stage = 1
-                                game_start_time = pygame.time.get_ticks()
-                                game_timer = 0
-                                current_state = STATE_PLAYING
-                                sam_s1_played = False
-                                sam_s5_part2_pending = False
-                                sam_s5_timer = 0
-                                if point_count_sound: point_count_sound.stop()
-                            elif game_over_menu_options[game_over_menu_index] == "MENU":
+                             if game_over_menu_options[game_over_menu_index] == "RETRY":
+                                 pos = pygame.Vector2(0, 0)
+                                 vel = pygame.Vector2(0, 0)
+                                 enemies.clear()
+                                 bullets.clear()
+                                 score, energy, hp = 0, 100, LIVES
+                                 explosion_ammo, spread_ammo = 0, 0
+                                 invincibility_start_time = 0
+                                 last_score_milestone = 0
+                                 last_explosion_ammo_milestone = 0
+                                 last_spread_ammo_milestone = 0
+                                 explosion_start_granted = False
+                                 spread_start_granted = False
+                                 shield_is_disabled = False
+                                 explosion_effects.clear()
+                                 current_weapon = 0
+                                 current_stage = 1
+                                 is_boss_fight = False
+                                 current_boss = None
+                                 boss_start_time = 0
+                                 game_start_time = pygame.time.get_ticks()
+                                 game_timer = 0
+                                 total_pause_duration = 0
+                                 pause_start_time = 0
+                                 current_state = STATE_PLAYING
+                                 invincibility_start_time = pygame.time.get_ticks()
+                                 sam_s1_played = False
+                                 sam_s5_part2_pending = False
+                                 sam_s5_timer = 0
+                                 if point_count_sound: point_count_sound.stop()
+                             elif game_over_menu_options[game_over_menu_index] == "MENU":
                                 if point_count_sound: point_count_sound.stop()
                                 pygame.mixer.music.stop()
                                 music_playing = "STOPPED"
                                 current_state = STATE_MENU
                             
-                            elif game_over_menu_options[game_over_menu_index] == "QUIT":
+                             elif game_over_menu_options[game_over_menu_index] == "QUIT":
                                 pygame.quit()
                                 return
                         elif event.key == pygame.K_ESCAPE:
@@ -274,140 +303,7 @@ def main():
                             music_playing = "STOPPED"
                             current_state = STATE_MENU
 
-                    elif current_state == STATE_HARDCORE_SELECT:
-                        if event.key == pygame.K_w or event.key == pygame.K_UP:
-                            hardcore_index = (hardcore_index - 1) % len(HARDCORE_TIERS)
-                        elif event.key == pygame.K_s or event.key == pygame.K_DOWN:
-                            hardcore_index = (hardcore_index + 1) % len(HARDCORE_TIERS)
-                        elif event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
-                            selected_difficulty = HARDCORE_TIERS[hardcore_index]
-                            current_state = STATE_TUTORIAL
-                        elif event.key == pygame.K_ESCAPE:
-                            current_state = STATE_DIFFICULTY
 
-                    elif current_state == STATE_TUTORIAL:
-                        if event.key == pygame.K_SPACE:
-                            pos = pygame.Vector2(0, 0)
-                            vel = pygame.Vector2(0, 0)
-                            enemies.clear()
-                            bullets.clear()
-                            score, energy, hp = 0, 100, LIVES
-                            explosion_ammo, spread_ammo = 0, 0
-                            invincibility_start_time = 0
-                            last_score_milestone = 0
-                            last_explosion_ammo_milestone = 0
-                            last_spread_ammo_milestone = 0
-                            explosion_start_granted = False
-                            spread_start_granted = False
-                            shield_is_disabled = False
-                            explosion_effects.clear()
-                            current_weapon = 0
-                            current_stage = 1
-                            game_start_time = pygame.time.get_ticks()
-                            game_timer = 0
-                            current_state = STATE_PLAYING
-                            sam_s1_played = False
-                            sam_s5_part2_pending = False
-                            sam_s5_timer = 0
-                            if point_count_sound: point_count_sound.stop()
-
-
-
-                    elif current_state == STATE_PLAYING:
-                        if event.key == pygame.K_p:
-                            current_state = STATE_PAUSED
-                            pause_menu_index = 0
-                            if pause_sound: pause_sound.play()
-                            if p_press_sound: p_press_sound.play()
-
-                    elif current_state == STATE_PAUSED:
-                        if event.key == pygame.K_p:
-                            current_state = STATE_PLAYING
-                        elif event.key == pygame.K_ESCAPE:
-                            current_state = STATE_PLAYING
-                        elif event.key == pygame.K_w or event.key == pygame.K_UP:
-                            pause_menu_index = (pause_menu_index - 1) % len(pause_menu_options)
-                        elif event.key == pygame.K_s or event.key == pygame.K_DOWN:
-                            pause_menu_index = (pause_menu_index + 1) % len(pause_menu_options)
-                        elif event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
-                            if pause_menu_options[pause_menu_index] == "QUIT":
-                                pygame.quit()
-                                return
-                            elif pause_menu_options[pause_menu_index] == "MENU":
-                                if point_count_sound: point_count_sound.stop()
-                                pygame.mixer.music.stop()
-                                music_playing = "STOPPED"
-                                current_state = STATE_MENU
-                            elif pause_menu_options[pause_menu_index] == "RETRY":
-                                pos = pygame.Vector2(0, 0)
-                                vel = pygame.Vector2(0, 0)
-                                enemies.clear()
-                                bullets.clear()
-                                score, energy, hp = 0, 100, LIVES
-                                explosion_ammo, spread_ammo = 0, 0
-                                invincibility_start_time = 0
-                                last_score_milestone = 0
-                                last_explosion_ammo_milestone = 0
-                                last_spread_ammo_milestone = 0
-                                explosion_start_granted = False
-                                spread_start_granted = False
-                                shield_is_disabled = False
-                                explosion_effects.clear()
-                                current_weapon = 0
-                                current_stage = 1
-                                game_start_time = pygame.time.get_ticks()
-                                game_timer = 0
-                                current_state = STATE_PLAYING
-                                sam_s1_played = False
-                                sam_s5_part2_pending = False
-                                sam_s5_timer = 0
-                                if point_count_sound: point_count_sound.stop()
-
-
-                    elif current_state == STATE_GAMEOVER:
-                        if event.key == pygame.K_w or event.key == pygame.K_UP:
-                            game_over_menu_index = (game_over_menu_index - 1) % len(game_over_menu_options)
-                        elif event.key == pygame.K_s or event.key == pygame.K_DOWN:
-                            game_over_menu_index = (game_over_menu_index + 1) % len(game_over_menu_options)
-                        elif event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
-                            if game_over_menu_options[game_over_menu_index] == "RETRY":
-                                pos = pygame.Vector2(0, 0)
-                                vel = pygame.Vector2(0, 0)
-                                enemies.clear()
-                                bullets.clear()
-                                score, energy, hp = 0, 100, LIVES
-                                explosion_ammo, spread_ammo = 0, 0
-                                invincibility_start_time = 0
-                                last_score_milestone = 0
-                                last_explosion_ammo_milestone = 0
-                                last_spread_ammo_milestone = 0
-                                explosion_start_granted = False
-                                spread_start_granted = False
-                                shield_is_disabled = False
-                                explosion_effects.clear()
-                                current_weapon = 0
-                                current_stage = 1
-                                game_start_time = pygame.time.get_ticks()
-                                game_timer = 0
-                                current_state = STATE_PLAYING
-                                sam_s1_played = False
-                                sam_s5_part2_pending = False
-                                sam_s5_timer = 0
-                                if point_count_sound: point_count_sound.stop()
-                            elif game_over_menu_options[game_over_menu_index] == "MENU":
-                                if point_count_sound: point_count_sound.stop()
-                                pygame.mixer.music.stop()
-                                music_playing = "STOPPED"
-                                current_state = STATE_MENU
-
-                            elif game_over_menu_options[game_over_menu_index] == "QUIT":
-                                pygame.quit()
-                                return
-                        elif event.key == pygame.K_ESCAPE:
-                            if point_count_sound: point_count_sound.stop()
-                            pygame.mixer.music.stop()
-                            music_playing = "STOPPED"
-                            current_state = STATE_MENU
 
 
 
@@ -427,16 +323,31 @@ def main():
                 if game_start_time == 0:
                     game_start_time = current_time_ms
                 
-                elapsed_time = (current_time_ms - game_start_time) // 1000
-                current_stage = (elapsed_time // STAGE_DURATION) + 1
+                elapsed_time = (current_time_ms - game_start_time - total_pause_duration) // 1000
                 
-                # Time remaining in current stage
-                game_timer = STAGE_DURATION - (elapsed_time % STAGE_DURATION)
-                if current_stage > MAX_STAGE:
-                    game_timer = 0
+                if not is_boss_fight:
+                    game_timer = STAGE_DURATION - (elapsed_time % STAGE_DURATION)
+                    
+                    if elapsed_time >= STAGE_DURATION and current_stage <= MAX_STAGE:
+                        is_boss_fight = True
+                        boss_start_time = current_time_ms
+                        current_boss = Boss(pos + pygame.Vector2(0, -300), current_stage, scaling_factor)
+                else:
+                    # Boss fight timer: 60 seconds to defeat the boss
+                    boss_elapsed = (current_time_ms - boss_start_time - total_pause_duration) // 1000
+                    game_timer = 60 - boss_elapsed
+                    
+                    if game_timer <= 0:
+                        # Player failed to defeat the boss in time
+                        pygame.mixer.stop()
+                        pygame.mixer.music.stop()
+                        if sam_sound: sam_sound.play()
+                        current_state = STATE_DEATH_SEQUENCE
+                        death_sequence_start_time = current_time_ms
+                        if bang_sound: bang_sound.play()
                 
-                # Victory Condition: After completing Stage 5
-                if current_stage > MAX_STAGE:
+                # Victory Condition: After defeating Stage 5 boss
+                if current_stage > MAX_STAGE and current_boss is None:
                     if sam_win: sam_win.play()
                     current_state = STATE_GAMEOVER
                     game_over_fade_start_time = pygame.time.get_ticks()
@@ -480,12 +391,77 @@ def main():
                 # Camera
                 shake_off = pygame.Vector2(random.uniform(-shake, shake), random.uniform(-shake, shake))
                 if shake > 0: shake *= 0.9
-                camera.x += (pos.x - camera.x - WIDTH // 2) * CAM_SMOOTHING
-                camera.y += (pos.y - camera.y - HEIGHT // 2) * CAM_SMOOTHING
+                if is_boss_fight and current_boss:
+                    # Smoothly center camera between player and boss for a larger view of the fight
+                    midpoint = (pos + current_boss.pos) / 2
+                    target_x = midpoint.x - WIDTH // 2
+                    target_y = midpoint.y - HEIGHT // 2
+                    camera.x += (target_x - camera.x) * CAM_SMOOTHING
+                    camera.y += (target_y - camera.y) * CAM_SMOOTHING
+                else:
+                    camera.x += (pos.x - camera.x - WIDTH // 2) * CAM_SMOOTHING
+                    camera.y += (pos.y - camera.y - HEIGHT // 2) * CAM_SMOOTHING
+
+                if is_boss_fight and current_boss:
+                    current_boss.update(pos, current_stage, enemies)
+                    if current_boss.pos.distance_to(pos) < 30:
+                        if (pygame.time.get_ticks() - invincibility_start_time) > invincibility_duration:
+                            if damage_sound: damage_sound.play()
+                            hp -= 2
+                            invincibility_start_time = pygame.time.get_ticks()
+                            shake = 30
+                            if hp <= 0:
+                                pygame.mixer.stop()
+                                pygame.mixer.music.stop()
+                                if sam_sound: sam_sound.play()
+                                current_state = STATE_DEATH_SEQUENCE
+                                death_sequence_start_time = pygame.time.get_ticks()
+                                if bang_sound: bang_sound.play()
+                    if current_boss.hp <= 0:
+                        if explosion_sound: explosion_sound.play()
+                        bits += BITS_PER_BOSS
+                        score += 1000
+                        current_boss = None
+                        is_boss_fight = False
+                        current_stage += 1
+                        game_start_time = pygame.time.get_ticks()
+                        shake = 50
+                else:
+                    # Enemy Spawning
+                    if len(enemies) < STAGE_ENEMY_CAPS.get(current_stage, 20) and random.random() < 0.05:
+                        spawn_pos = pos + pygame.Vector2(random.uniform(-600, 600), random.uniform(-600, 600))
+                        if spawn_pos.distance_to(pos) > 400:
+                            enemies.append(Enemy(spawn_pos, current_stage, scaling_factor))
 
                 for s in stars:
                     sx, sy = (s.x - camera.x) % WIDTH, (s.y - camera.y) % HEIGHT
                     pygame.draw.circle(screen, (80, 80, 100), (int(sx), int(sy)), 1)
+
+                for e in enemies[:]:
+                    e.update(pos, current_stage, enemies)
+                    dist = e.pos.distance_to(pos)
+                    if (is_shielding and dist < 45) or (not is_shielding and dist < 20):
+                        if is_shielding:
+                            if bounce_sound: bounce_sound.play()
+                            e.vel = (e.pos - pos).normalize() * 20
+                        elif (pygame.time.get_ticks() - invincibility_start_time) > invincibility_duration:
+                            if damage_sound: damage_sound.play()
+                            hp -= 1
+                            invincibility_start_time = pygame.time.get_ticks()
+                            shake = 25
+                            for nearby_e in enemies[:]:
+                                if nearby_e.pos.distance_to(pos) < 200:
+                                    nearby_e.vel = (nearby_e.pos - pos).normalize() * 30
+                            if hp <= 0:
+                                pygame.mixer.stop()
+                                pygame.mixer.music.stop()
+                                if sam_sound: sam_sound.play()
+                                current_state = STATE_DEATH_SEQUENCE
+                                death_sequence_start_time = pygame.time.get_ticks()
+                                if bang_sound: bang_sound.play()
+                    
+                    if e.pos.distance_to(pos) > 2000:
+                        enemies.remove(e)
 
                 mouse_btns = pygame.mouse.get_pressed()
                 is_shielding = mouse_btns[2] and energy > 10 and not shield_is_disabled
@@ -553,122 +529,143 @@ def main():
                     if not mouse_btns[2] and energy >= 40:
                         shield_is_disabled = False
 
+                if is_boss_fight and current_boss:
+                    # Optimize bullet collisions by filtering instead of removing in loop
+                    bullets_to_keep = []
+                    for bb in current_boss.bullets:
+                        dist_sq = bb.pos.distance_squared_to(pos)
+                        if is_shielding and dist_sq < 45**2:
+                            if bounce_sound: bounce_sound.play()
+                            continue
+                        if dist_sq < 20**2:
+                            if (pygame.time.get_ticks() - invincibility_start_time) > invincibility_duration:
+                                if damage_sound: damage_sound.play()
+                                hp -= 1
+                                invincibility_start_time = pygame.time.get_ticks()
+                                shake = 25
+                                if hp <= 0:
+                                    pygame.mixer.stop()
+                                    pygame.mixer.music.stop()
+                                    if sam_sound: sam_sound.play()
+                                    current_state = STATE_DEATH_SEQUENCE
+                                    death_sequence_start_time = pygame.time.get_ticks()
+                                    if bang_sound: bang_sound.play()
+                            continue
+                        bullets_to_keep.append(bb)
+                    current_boss.bullets = bullets_to_keep
+
                 for b in bullets[:]:
                     b.update()
+                    hit_something = False
+                    
                     if b.type == "explosion":
                         for e in enemies[:]:
-                            if b.pos.distance_to(e.pos) < 20:
+                            if b.pos.distance_squared_to(e.pos) < 20**2:
+                                hit_something = True
                                 if b in bullets: bullets.remove(b)
                                 if explosion_sound: explosion_sound.play()
                                 effect = ExplosionEffect(b.pos)
                                 explosion_effects.append(effect)
                                 for e2 in enemies[:]:
-                                    if e2.pos.distance_to(effect.pos) < 150:
+                                    if e2.pos.distance_squared_to(effect.pos) < 150**2:
                                         enemies.remove(e2)
                                         score += SCORE_PER_KILL
-                                if pos.distance_to(effect.pos) < 150 and (pygame.time.get_ticks() - invincibility_start_time) > invincibility_duration:
+                                if current_boss and effect.pos.distance_squared_to(current_boss.pos) < 150**2:
+                                    current_boss.hp -= 5
+                                if pos.distance_squared_to(effect.pos) < 150**2 and (pygame.time.get_ticks() - invincibility_start_time) > invincibility_duration:
                                     if damage_sound: damage_sound.play()
                                     hp -= 1
                                     invincibility_start_time = pygame.time.get_ticks()
                                     shake = 25
                                     for nearby_e in enemies[:]:
-                                        if nearby_e.pos.distance_to(pos) < 200:
+                                        if nearby_e.pos.distance_squared_to(pos) < 200**2:
                                             nearby_e.vel = (nearby_e.pos - pos).normalize() * 30
                                     if hp <= 0: 
-                                         pygame.mixer.stop()
-                                         pygame.mixer.music.stop()
-                                         if sam_sound: sam_sound.play()
-                                         current_state = STATE_DEATH_SEQUENCE
-                                         if damage_sound: damage_sound.play()
-                                         death_sequence_start_time = pygame.time.get_ticks()
-                                         if bang_sound: bang_sound.play()
-
-
+                                        pygame.mixer.stop()
+                                        pygame.mixer.music.stop()
+                                        if sam_sound: sam_sound.play()
+                                        current_state = STATE_DEATH_SEQUENCE
+                                        death_sequence_start_time = pygame.time.get_ticks()
+                                        if bang_sound: bang_sound.play()
                                 shake = SHAKE_POWER
                                 break
-                    elif any(e.pos.distance_to(b.pos) < 20 for e in enemies):
-                        for e in enemies[:]:
-                            if e.pos.distance_to(b.pos) < 20:
-                                e.hp -= 1
-                                if e.hp <= 0:
-                                    enemies.remove(e)
+                        
+                        if not hit_something and current_boss and b.pos.distance_squared_to(current_boss.pos) < 20**2:
+                            hit_something = True
+                            if b in bullets: bullets.remove(b)
+                            if explosion_sound: explosion_sound.play()
+                            effect = ExplosionEffect(b.pos)
+                            explosion_effects.append(effect)
+                            for e2 in enemies[:]:
+                                if e2.pos.distance_squared_to(effect.pos) < 150**2:
+                                    enemies.remove(e2)
                                     score += SCORE_PER_KILL
-                                    shake = SHAKE_POWER
+                            if current_boss and effect.pos.distance_squared_to(current_boss.pos) < 150**2:
+                                current_boss.hp -= 5
+                            if pos.distance_squared_to(effect.pos) < 150**2 and (pygame.time.get_ticks() - invincibility_start_time) > invincibility_duration:
+                                if damage_sound: damage_sound.play()
+                                hp -= 1
+                                invincibility_start_time = pygame.time.get_ticks()
+                                shake = 25
+                                for nearby_e in enemies[:]:
+                                    if nearby_e.pos.distance_squared_to(pos) < 200**2:
+                                        nearby_e.vel = (nearby_e.pos - pos).normalize() * 30
+                                    if hp <= 0: 
+                                        pygame.mixer.stop()
+                                        pygame.mixer.music.stop()
+                                        if sam_sound: sam_sound.play()
+                                        current_state = STATE_DEATH_SEQUENCE
+                                        death_sequence_start_time = pygame.time.get_ticks()
+                                        if bang_sound: bang_sound.play()
+                            shake = SHAKE_POWER
+                        
+                        if not hit_something:
+                            if (b.lifetime is not None and b.lifetime <= 0) or b.pos.distance_to(pos) > 1500:
                                 if b in bullets: bullets.remove(b)
-                                break
-
-                    if b in bullets:
-                        if (b.lifetime is not None and b.lifetime <= 0) or b.pos.distance_to(pos) > 1500:
-                            if b.type == "explosion":
-                                if explosion_sound: explosion_sound.play()
-                                effect = ExplosionEffect(b.pos)
-                                explosion_effects.append(effect)
-                                for e in enemies[:]:
-                                    if e.pos.distance_to(effect.pos) < 150:
+                            else:
+                                b.draw(screen, camera, shake_off)
+                                
+                    else:
+                        # Normal bullets
+                        if any(e.pos.distance_squared_to(b.pos) < 20**2 for e in enemies):
+                            for e in enemies[:]:
+                                if e.pos.distance_squared_to(b.pos) < 20**2:
+                                    e.hp -= 1
+                                    if e.hp <= 0:
                                         enemies.remove(e)
                                         score += SCORE_PER_KILL
-                                if pos.distance_to(effect.pos) < 150 and (pygame.time.get_ticks() - invincibility_start_time) > invincibility_duration:
-                                    if damage_sound: damage_sound.play()
-                                    hp -= 1
-                                    invincibility_start_time = pygame.time.get_ticks()
-                                    shake = 25
-                                    for nearby_e in enemies[:]:
-                                        if nearby_e.pos.distance_to(pos) < 200:
-                                            nearby_e.vel = (nearby_e.pos - pos).normalize() * 30
-                                    if hp <= 0: 
-                                         pygame.mixer.stop()
-                                         pygame.mixer.music.stop()
-                                         if sam_sound: sam_sound.play()
-                                         current_state = STATE_DEATH_SEQUENCE
-                                         death_sequence_start_time = pygame.time.get_ticks()
-                                         if bang_sound: bang_sound.play()
+                                        bits += BITS_PER_KILL
+                                        shake = SHAKE_POWER
+                                    if b in bullets: bullets.remove(b)
+                                    hit_something = True
+                                    break
+                        
+                        if not hit_something and current_boss and b.pos.distance_squared_to(current_boss.pos) < 20**2:
+                            current_boss.hp -= 1
+                            if b in bullets: bullets.remove(b)
+                            shake = SHAKE_POWER
+                            hit_something = True
 
-
-                                shake = SHAKE_POWER
-                            bullets.remove(b)
-                        else:
-                            b.draw(screen, camera, shake_off)
-
-                if random.random() < 0.04 * scaling_factor and len(enemies) < STAGE_ENEMY_CAPS[current_stage]:
-                    spawn_angle = random.uniform(0, math.pi * 2)
-                    spawn_pos = pos + pygame.Vector2(math.cos(spawn_angle), math.sin(spawn_angle)) * 800
-                    enemies.append(Enemy(spawn_pos, current_stage, scaling_factor))
-
-                for e in enemies[:]:
-                    e.update(pos, current_stage)
-                    e.draw(screen, camera, shake_off)
-                    if e.pos.distance_to(pos) < 50:
-                        if is_shielding:
-                            e.vel = (e.pos - pos).normalize() * 15
-                            shake = 10
-                            if bounce_sound: bounce_sound.play()
-                        elif e.pos.distance_to(pos) < 30 and not is_shielding and (pygame.time.get_ticks() - invincibility_start_time) > invincibility_duration:
-                            if damage_sound: damage_sound.play()
-                            hp -= 1
-                            invincibility_start_time = pygame.time.get_ticks()
-                            shake = 25
-                            for nearby_e in enemies[:]:
-                                if nearby_e.pos.distance_to(pos) < 200:
-                                    nearby_e.vel = (nearby_e.pos - pos).normalize() * 30
-                                    if hp <= 0: 
-                                         pygame.mixer.stop()
-                                         pygame.mixer.music.stop()
-                                         #if sam_sound: sam_sound.play()
-                                         current_state = STATE_DEATH_SEQUENCE
-                                         death_sequence_start_time = pygame.time.get_ticks()
-                                         if bang_sound: bang_sound.play()
-
-
-
-                draw_pos = pos - camera + shake_off
+                        if not hit_something:
+                            if (b.lifetime is not None and b.lifetime <= 0) or b.pos.distance_to(pos) > 1500:
+                                if b in bullets: bullets.remove(b)
+                            else:
+                                b.draw(screen, camera, shake_off)
                 should_draw = True
+                draw_pos = pos - camera
+                for e in enemies:
+                    e.draw(screen, camera, shake_off)
+
                 if (pygame.time.get_ticks() - invincibility_start_time) < invincibility_duration:
                     should_draw = ((pygame.time.get_ticks() // 100) % 2) == 0
                 if should_draw:
                     if is_shielding: pygame.draw.circle(screen, (255, 180, 0), draw_pos, 45, 2)
                     pygame.draw.polygon(screen, current_color, [draw_pos + pygame.Vector2(30, 0).rotate(angle), 
-                                                                   draw_pos + pygame.Vector2(-15, 15).rotate(angle), 
-                                                                   draw_pos + pygame.Vector2(-15, -15).rotate(angle)])
+                                                                    draw_pos + pygame.Vector2(-15, 15).rotate(angle), 
+                                                                    draw_pos + pygame.Vector2(-15, -15).rotate(angle)])
+                
+                if is_boss_fight and current_boss:
+                    current_boss.draw(screen, camera, shake_off)
 
                 if current_weapon == 1 and not is_shielding:
                     radius_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -709,6 +706,38 @@ def main():
                     last_score_milestone = score // 100
 
                 draw_hud(screen, font, score, hp, energy, current_weapon, weapon_names, explosion_ammo, spread_ammo, game_timer, current_stage, shield_is_disabled, blink=(stage_blink_timer > 0))
+                
+                # Boss Warning
+                if not is_boss_fight and game_timer <= 5 and current_stage <= MAX_STAGE:
+                    warning_text = font.render("WARNING: BOSS INCOMING!", True, (255, 0, 0))
+                    text_rect = warning_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+                    if (pygame.time.get_ticks() // 500) % 2 == 0: # Blink effect
+                        screen.blit(warning_text, text_rect)
+                
+                if is_boss_fight and current_boss:
+                    # Time Warning for Boss Fight
+                    if game_timer <= 10:
+                        timer_warning = font.render("HURRY! TIME IS RUNNING OUT!", True, (255, 255, 0))
+                        timer_rect = timer_warning.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 50))
+                        if (pygame.time.get_ticks() // 500) % 2 == 0:
+                            screen.blit(timer_warning, timer_rect)
+
+                    # Boss Health Bar
+                    bar_width = WIDTH * 0.6
+                    bar_height = 20
+                    bar_x = (WIDTH - bar_width) // 2
+                    bar_y = HEIGHT - 50
+                    
+                    # Background (Dark Red)
+                    pygame.draw.rect(screen, (100, 0, 0), (bar_x, bar_y, bar_width, bar_height))
+                    
+                    # Current Health (Bright Red)
+                    health_pct = max(0, current_boss.hp / current_boss.max_hp)
+                    pygame.draw.rect(screen, (255, 0, 0), (bar_x, bar_y, bar_width * health_pct, bar_height))
+                    
+                    # Border
+                    pygame.draw.rect(screen, (255, 255, 255), (bar_x, bar_y, bar_width, bar_height), 2)
+                
                 background_surface = screen.copy()
 
             elif current_state == STATE_MENU:

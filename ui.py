@@ -3,11 +3,12 @@ import math
 from config import *
 
 def draw_hud(screen, font, score, hp, energy, current_weapon, weapon_names, explosion_ammo, spread_ammo, game_timer, current_stage, shield_is_disabled, blink=False):
+    sw, sh = screen.get_size()
     # Top Center Timer & Stage
     timer_text = f"TIME: {game_timer // 60:02}:{game_timer % 60:02} | STAGE: {current_stage}"
     color = (0, 255, 0) if not blink else (255, 255, 0) # Neon Green blink
     timer_surf = font.render(timer_text, True, color)
-    screen.blit(timer_surf, ((WIDTH - timer_surf.get_width()) // 2, 20))
+    screen.blit(timer_surf, ((sw - timer_surf.get_width()) // 2, 20))
     
     # Shield Bar with Retro Border
     pygame.draw.rect(screen, (255, 255, 255), (18, 58, 154, 19), 2) # White border
@@ -51,7 +52,9 @@ def draw_hud(screen, font, score, hp, energy, current_weapon, weapon_names, expl
     screen.blit(font.render(ammo_text, True, (0, 255, 0)), (20, 160))
     screen.blit(font.render("Press E to switch", True, (150, 150, 150)), (20, 185))
 
+
 def draw_menu(screen, font):
+    sw, sh = screen.get_size()
     current_time = pygame.time.get_ticks()
     
     # Title with shadow
@@ -61,14 +64,14 @@ def draw_menu(screen, font):
     
     # Slight float effect
     off_y = math.sin(current_time * 0.002) * 10
-    screen.blit(title_shadow, ((WIDTH - title_main.get_width()) // 2 + 4, HEIGHT // 3 + 4 + off_y))
-    screen.blit(title_main, ((WIDTH - title_main.get_width()) // 2, HEIGHT // 3 + off_y))
+    screen.blit(title_shadow, ((sw - title_main.get_width()) // 2 + 4, sh // 3 + 4 + off_y))
+    screen.blit(title_main, ((sw - title_main.get_width()) // 2, sh // 3 + off_y))
     
     # Pulsing prompt
     alpha = (math.sin(current_time * 0.005) + 1) / 2
     p_color = (0 + 255 * alpha, 255 * alpha, 0) # Pulsing Neon Green
     prompt_surf = font.render("PRESS SPACE TO INFILTRATE", True, p_color)
-    screen.blit(prompt_surf, ((WIDTH - prompt_surf.get_width()) // 2, HEIGHT // 2 + 50))
+    screen.blit(prompt_surf, ((sw - prompt_surf.get_width()) // 2, sh // 2 + 50))
 
 def draw_difficulty_menu(screen, font, current_index, is_hardcore=False):
     screen.fill((10, 5, 15)) # Darker background
