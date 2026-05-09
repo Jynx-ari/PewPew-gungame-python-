@@ -6,7 +6,6 @@ import traceback
 from config import *
 from entities import Bullet, Enemy, Boss, ExplosionEffect
 from ui import draw_hud, draw_menu, draw_tutorial, draw_game_over
-from shader_engine import ShaderEngine
 
 def main():
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -65,6 +64,7 @@ def main():
         "mouse_sens": MOUSE_SENSITIVITY,
         "shaders_enabled": SHADERS_ENABLED
     }
+    shader_engine = None
     pos = pygame.Vector2(0, 0)
     vel = pygame.Vector2(0, 0)
     camera = pygame.Vector2(0, 0)
@@ -1013,7 +1013,12 @@ def main():
                 draw_game_over(screen, font, animated_score)
                 from ui import draw_game_over_menu
                 draw_game_over_menu(screen, font, game_over_menu_index, game_over_menu_options)
-
+            
+            if game_settings["shaders_enabled"]:
+                if shader_engine is None:
+                    from shader_engine import ShaderEngine
+                    shader_engine = ShaderEngine(WIDTH, HEIGHT)
+                shader_engine.render(screen)
 
             pygame.display.flip()
             clock.tick(FPS)
