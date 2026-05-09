@@ -2,7 +2,7 @@ import pygame
 import math
 from config import *
 
-def draw_hud(screen, font, score, hp, energy, current_weapon, weapon_names, explosion_ammo, spread_ammo, game_timer, current_stage, shield_is_disabled, blink=False):
+def draw_hud(screen, font, score, hp, energy, current_weapon, weapon_names, explosion_ammo, spread_ammo, game_timer, current_stage, shield_is_disabled, bits, blink=False):
     sw, sh = screen.get_size()
     # Top Center Timer & Stage
     timer_text = f"TIME: {game_timer // 60:02}:{game_timer % 60:02} | STAGE: {current_stage}"
@@ -33,8 +33,12 @@ def draw_hud(screen, font, score, hp, energy, current_weapon, weapon_names, expl
         score_color = COLOR_YELLOW if ((current_time // flash_interval) % 2) == 0 else COLOR_ORANGE
     screen.blit(font.render(f"SCORE: {score}", True, score_color), (20, 85))
     
+    # Bits
+    bits_surf = font.render(f"BITS: {bits}", True, COLOR_YELLOW)
+    screen.blit(bits_surf, (20, 110))
+    
     # HP
-    screen.blit(font.render(f"HP: {hp}", True, COLOR_LIGHT_RED), (20, 110))
+    screen.blit(font.render(f"HP: {hp}", True, COLOR_LIGHT_RED), (20, 135))
     
     # Weapon
     weapon_text = f"WEAPON: {weapon_names[current_weapon]}"
@@ -45,12 +49,12 @@ def draw_hud(screen, font, score, hp, energy, current_weapon, weapon_names, expl
     elif score < SPREAD_POINT_MILESTONE:
         weapon_text += f" (SPREAD @ {SPREAD_POINT_MILESTONE})"
         weapon_color = (150, 200, 255)
-    screen.blit(font.render(weapon_text, True, weapon_color), (20, 135))
+    screen.blit(font.render(weapon_text, True, weapon_color), (20, 160))
     
     # Ammo
     ammo_text = f"EXPLOSION: {explosion_ammo} | SPREAD: {spread_ammo}"
-    screen.blit(font.render(ammo_text, True, COLOR_NEON_GREEN), (20, 160))
-    screen.blit(font.render("Press E to switch", True, COLOR_GREY), (20, 185))
+    screen.blit(font.render(ammo_text, True, COLOR_NEON_GREEN), (20, 185))
+    screen.blit(font.render("Press E to switch", True, COLOR_GREY), (20, 210))
 
 def draw_menu(screen, font, current_index):
     sw, sh = screen.get_size()

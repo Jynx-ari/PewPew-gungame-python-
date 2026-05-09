@@ -2,6 +2,7 @@ import pygame
 import math
 import random
 import os
+import traceback
 from config import *
 from entities import Bullet, Enemy, Boss, ExplosionEffect
 from ui import draw_hud, draw_menu, draw_tutorial, draw_game_over
@@ -85,6 +86,7 @@ def main():
     explosion_start_granted = False
     spread_start_granted = False
     shield_is_disabled = False
+    last_boss_hp_milestone = 0
     explosion_effects = []
     current_stage = 1
     game_start_time = 0
@@ -156,7 +158,7 @@ def main():
                     # print(f"Key pressed: {event.key} | State: {current_state}")
                     if event.key == pygame.K_F11:
                         fullscreen = not fullscreen
-                        display = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN | pygame.DOUBLEBUF | pygame.OPENGL if fullscreen else pygame.DOUBLEBUF | pygame.OPENGL)
+                        screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN if fullscreen else 0)
                     
                     if current_state == STATE_MENU:
                         if event.key == pygame.K_w or event.key == pygame.K_UP:
@@ -272,6 +274,7 @@ def main():
                             score, energy, hp = 0, 100, LIVES
                             explosion_ammo, spread_ammo = 0, 0
                             explosion_unlocked, spread_unlocked = False, False
+                            bits = 0
                             invincibility_start_time = 0
                             last_score_milestone = 0
                             last_explosion_ammo_milestone = 0
@@ -333,6 +336,7 @@ def main():
                                 score, energy, hp = 0, 100, LIVES
                                 explosion_ammo, spread_ammo = 0, 0
                                 explosion_unlocked, spread_unlocked = False, False
+                                bits = 0
                                 invincibility_start_time = 0
                                 last_score_milestone = 0
                                 last_explosion_ammo_milestone = 0
@@ -371,6 +375,7 @@ def main():
                                  score, energy, hp = 0, 100, LIVES
                                  explosion_ammo, spread_ammo = 0, 0
                                  explosion_unlocked, spread_unlocked = False, False
+                                 bits = 0
                                  invincibility_start_time = 0
                                  last_score_milestone = 0
                                  last_explosion_ammo_milestone = 0
@@ -450,6 +455,7 @@ def main():
                         is_boss_fight = True
                         boss_start_time = current_time_ms
                         current_boss = Boss(pos + pygame.Vector2(0, -300), current_stage, scaling_factor)
+                        last_boss_hp_milestone = current_boss.max_hp
                 else:
                     # Boss fight timer: 60 seconds to defeat the boss
                     boss_elapsed = (current_time_ms - boss_start_time - total_pause_duration) // 1000
@@ -459,7 +465,6 @@ def main():
                         # Player failed to defeat the boss in time
                         pygame.mixer.stop()
                         pygame.mixer.music.stop()
-                        if sam_sound: sam_sound.play()
                         current_state = STATE_DEATH_SEQUENCE
                         death_sequence_start_time = current_time_ms
                         if bang_sound: bang_sound.play()
@@ -476,12 +481,13 @@ def main():
                 
                 # Handle stage transition
                 if 'prev_stage' not in locals():
-                    prev_stage = 0 # Start at 0 to trigger S1 voice on start
+                    prev_stage = 1 # Start at 1 to avoid giving bits for Stage 1 start
                 
                 if current_stage > prev_stage:
                     checkpoint_sound.play() if checkpoint_sound else None
                     stage_blink_timer = 60 
                     shake = 30
+                    bits += BITS_PER_STAGE
                     
                     # SAM Voice announcements (S2-S5)
                     if current_stage == 2 and sam_s2: sam_s2.play()
@@ -491,6 +497,7 @@ def main():
                         if sam_s5_1: sam_s5_1.play()
                         sam_s5_part2_pending = True
                         sam_s5_timer = pygame.time.get_ticks()
+
 
                 prev_stage = current_stage
 
@@ -587,7 +594,6 @@ def main():
                             if hp <= 0:
                                 pygame.mixer.stop()
                                 pygame.mixer.music.stop()
-                                if sam_sound: sam_sound.play()
                                 current_state = STATE_DEATH_SEQUENCE
                                 death_sequence_start_time = pygame.time.get_ticks()
                                 if bang_sound: bang_sound.play()
@@ -678,7 +684,6 @@ def main():
                                 if hp <= 0:
                                     pygame.mixer.stop()
                                     pygame.mixer.music.stop()
-                                    if sam_sound: sam_sound.play()
                                     current_state = STATE_DEATH_SEQUENCE
                                     death_sequence_start_time = pygame.time.get_ticks()
                                     if bang_sound: bang_sound.play()
@@ -686,6 +691,8 @@ def main():
                         bullets_to_keep.append(bb)
                     current_boss.bullets = bullets_to_keep
 
+                draw_pos = pos - camera
+                should_draw = True
                 for b in bullets[:]:
                     b.update()
                     hit_something = False
@@ -704,6 +711,11 @@ def main():
                                         score += SCORE_PER_KILL
                                 if current_boss and effect.pos.distance_squared_to(current_boss.pos) < 150**2:
                                     current_boss.hp -= 5
+                                    milestone_val = current_boss.max_hp * 0.1
+                                    crossed = int(last_boss_hp_milestone / milestone_val) - int(current_boss.hp / milestone_val)
+                                    if crossed > 0:
+                                        bits += crossed * 2
+                                        last_boss_hp_milestone = current_boss.hp
                                 if pos.distance_squared_to(effect.pos) < 150**2 and (pygame.time.get_ticks() - invincibility_start_time) > invincibility_duration:
                                     if damage_sound: damage_sound.play()
                                     hp -= 1
@@ -715,7 +727,6 @@ def main():
                                     if hp <= 0: 
                                         pygame.mixer.stop()
                                         pygame.mixer.music.stop()
-                                        if sam_sound: sam_sound.play()
                                         current_state = STATE_DEATH_SEQUENCE
                                         death_sequence_start_time = pygame.time.get_ticks()
                                         if bang_sound: bang_sound.play()
@@ -734,6 +745,11 @@ def main():
                                     score += SCORE_PER_KILL
                             if current_boss and effect.pos.distance_squared_to(current_boss.pos) < 150**2:
                                 current_boss.hp -= 5
+                                milestone_val = current_boss.max_hp * 0.1
+                                crossed = int(last_boss_hp_milestone / milestone_val) - int(current_boss.hp / milestone_val)
+                                if crossed > 0:
+                                    bits += crossed * 2
+                                    last_boss_hp_milestone = current_boss.hp
                             if pos.distance_squared_to(effect.pos) < 150**2 and (pygame.time.get_ticks() - invincibility_start_time) > invincibility_duration:
                                 if damage_sound: damage_sound.play()
                                 hp -= 1
@@ -742,21 +758,13 @@ def main():
                                 for nearby_e in enemies[:]:
                                     if nearby_e.pos.distance_squared_to(pos) < 200**2:
                                         nearby_e.vel = (nearby_e.pos - pos).normalize() * 30
-                                    if hp <= 0: 
-                                        pygame.mixer.stop()
-                                        pygame.mixer.music.stop()
-                                        if sam_sound: sam_sound.play()
-                                        current_state = STATE_DEATH_SEQUENCE
-                                        death_sequence_start_time = pygame.time.get_ticks()
-                                        if bang_sound: bang_sound.play()
+                                if hp <= 0: 
+                                    pygame.mixer.stop()
+                                    pygame.mixer.music.stop()
+                                    current_state = STATE_DEATH_SEQUENCE
+                                    death_sequence_start_time = pygame.time.get_ticks()
+                                    if bang_sound: bang_sound.play()
                             shake = SHAKE_POWER
-                        
-                        if not hit_something:
-                            if (b.lifetime is not None and b.lifetime <= 0) or b.pos.distance_to(pos) > 1500:
-                                if b in bullets: bullets.remove(b)
-                            else:
-                                b.draw(screen, camera, shake_off)
-                                
                     else:
                         # Normal bullets
                         if any(e.pos.distance_squared_to(b.pos) < 20**2 for e in enemies):
@@ -774,17 +782,20 @@ def main():
                         
                         if not hit_something and current_boss and b.pos.distance_squared_to(current_boss.pos) < 20**2:
                             current_boss.hp -= 1
+                            milestone_val = current_boss.max_hp * 0.1
+                            crossed = int(last_boss_hp_milestone / milestone_val) - int(current_boss.hp / milestone_val)
+                            if crossed > 0:
+                                bits += crossed * 2
+                                last_boss_hp_milestone = current_boss.hp
                             if b in bullets: bullets.remove(b)
                             shake = SHAKE_POWER
                             hit_something = True
-
-                        if not hit_something:
-                            if (b.lifetime is not None and b.lifetime <= 0) or b.pos.distance_to(pos) > 1500:
-                                if b in bullets: bullets.remove(b)
-                            else:
-                                b.draw(screen, camera, shake_off)
-                should_draw = True
-                draw_pos = pos - camera
+                    
+                    if not hit_something:
+                        if (b.lifetime is not None and b.lifetime <= 0) or b.pos.distance_to(pos) > 1500:
+                            if b in bullets: bullets.remove(b)
+                        else:
+                            b.draw(screen, camera, shake_off)
                 for e in enemies:
                     e.draw(screen, camera, shake_off)
 
@@ -835,7 +846,7 @@ def main():
                     if score_sound: score_sound.play()
                     last_score_milestone = score // 100
 
-                draw_hud(screen, font, score, hp, energy, current_weapon, weapon_names, explosion_ammo, spread_ammo, game_timer, current_stage, shield_is_disabled, blink=(stage_blink_timer > 0))
+                draw_hud(screen, font, score, hp, energy, current_weapon, weapon_names, explosion_ammo, spread_ammo, game_timer, current_stage, shield_is_disabled, bits, blink=(stage_blink_timer > 0))
                 
                 # Boss Warning
                 if not is_boss_fight and game_timer <= 5 and current_stage <= MAX_STAGE:
@@ -1007,6 +1018,7 @@ def main():
             pygame.display.flip()
             clock.tick(FPS)
     except Exception as e:
+        traceback.print_exc()
         print(f"ERROR: {e}")
         print("Contact the Dev lol XD")
     finally:
