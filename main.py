@@ -64,6 +64,10 @@ def main():
         "mouse_sens": MOUSE_SENSITIVITY,
         "shaders_enabled": SHADERS_ENABLED
     }
+    # Pre-render a star surface for performance
+    star_surf = pygame.Surface((2, 2))
+    star_surf.fill((80, 80, 100))
+    
     shader_engine = None
     pos = pygame.Vector2(0, 0)
     vel = pygame.Vector2(0, 0)
@@ -92,6 +96,8 @@ def main():
     game_start_time = 0
     game_timer = 0
     total_pause_duration = 0
+    stage_pause_offset = 0
+    boss_pause_offset = 0
     pause_start_time = 0
     current_state = STATE_MENU
     current_boss = None
@@ -291,6 +297,7 @@ def main():
                             game_start_time = pygame.time.get_ticks()
                             game_timer = 0
                             total_pause_duration = 0
+                            stage_pause_offset = 0
                             pause_start_time = 0
                             current_state = STATE_PLAYING
                             invincibility_start_time = pygame.time.get_ticks()
@@ -353,6 +360,7 @@ def main():
                                 game_start_time = pygame.time.get_ticks()
                                 game_timer = 0
                                 total_pause_duration = 0
+                                stage_pause_offset = 0
                                 pause_start_time = 0
                                 current_state = STATE_PLAYING
                                 invincibility_start_time = pygame.time.get_ticks()
@@ -392,6 +400,7 @@ def main():
                                  game_start_time = pygame.time.get_ticks()
                                  game_timer = 0
                                  total_pause_duration = 0
+                                 stage_pause_offset = 0
                                  pause_start_time = 0
                                  current_state = STATE_PLAYING
                                  invincibility_start_time = pygame.time.get_ticks()
@@ -423,6 +432,10 @@ def main():
 
             if current_state == STATE_PLAYING:
                 scaling_factor = DIFFICULTY_SCALING.get(selected_difficulty, 1.0)
+                mouse_btns = pygame.mouse.get_pressed()
+                is_shielding = mouse_btns[2] and energy > 0 and not shield_is_disabled
+                is_shooting = mouse_btns[0] and not is_shielding
+
                 # Music management
                 if music_playing != "BG":
                     pygame.mixer.music.load(MUSIC_BG)
@@ -445,8 +458,9 @@ def main():
                 current_time_ms = pygame.time.get_ticks()
                 if game_start_time == 0:
                     game_start_time = current_time_ms
+                    stage_pause_offset = total_pause_duration
                 
-                elapsed_time = (current_time_ms - game_start_time - total_pause_duration) // 1000
+                elapsed_time = (current_time_ms - game_start_time - (total_pause_duration - stage_pause_offset)) // 1000
                 
                 if not is_boss_fight:
                     game_timer = STAGE_DURATION - (elapsed_time % STAGE_DURATION)
@@ -454,11 +468,12 @@ def main():
                     if elapsed_time >= STAGE_DURATION and current_stage <= MAX_STAGE:
                         is_boss_fight = True
                         boss_start_time = current_time_ms
+                        boss_pause_offset = total_pause_duration
                         current_boss = Boss(pos + pygame.Vector2(0, -300), current_stage, scaling_factor)
                         last_boss_hp_milestone = current_boss.max_hp
                 else:
                     # Boss fight timer: 60 seconds to defeat the boss
-                    boss_elapsed = (current_time_ms - boss_start_time - total_pause_duration) // 1000
+                    boss_elapsed = (current_time_ms - boss_start_time - (total_pause_duration - boss_pause_offset)) // 1000
                     game_timer = 60 - boss_elapsed
                     
                     if game_timer <= 0:
@@ -562,6 +577,7 @@ def main():
                         is_boss_fight = False
                         current_stage += 1
                         game_start_time = pygame.time.get_ticks()
+                        stage_pause_offset = total_pause_duration
                         shake = 50
 
 
@@ -574,7 +590,7 @@ def main():
 
                 for s in stars:
                     sx, sy = (s.x - camera.x) % WIDTH, (s.y - camera.y) % HEIGHT
-                    pygame.draw.circle(screen, (80, 80, 100), (int(sx), int(sy)), 1)
+                    screen.blit(star_surf, (int(sx), int(sy)))
 
                 for e in enemies[:]:
                     e.update(pos, current_stage, enemies)
@@ -600,10 +616,6 @@ def main():
                     
                     if e.pos.distance_to(pos) > 2000:
                         enemies.remove(e)
-
-                mouse_btns = pygame.mouse.get_pressed()
-                is_shielding = mouse_btns[2] and energy > 10 and not shield_is_disabled
-                is_shooting = mouse_btns[0] and not is_shielding
 
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_e] and weapon_switch_cooldown <= 0:
@@ -646,7 +658,7 @@ def main():
                     elif current_weapon == 2 and spread_ammo > 0:
                         if pew_sound: pew_sound.play()
                         for i in range(SPREAD_BULLET_COUNT):
-                            spread_angle = (i - (SPREAD_BULLET_COUNT - 1) / 2) * 12
+                            spread_angle = (i - (SPREAD_BULLET_COUNT - 1) / 2) * SPREAD_ARC
                             spread_vec = dir_vec.rotate(spread_angle)
                             bullets.append(Bullet(pos, spread_vec * BULLET_SPEED * 0.8))
                         vel -= dir_vec * RECOIL
@@ -708,7 +720,8 @@ def main():
                                 for e2 in enemies[:]:
                                     if e2.pos.distance_squared_to(effect.pos) < 150**2:
                                         enemies.remove(e2)
-                                        score += SCORE_PER_KILL
+                                        score += 10 * e2.hp
+                                        bits += 1 if e2.hp == 1 else 5
                                 if current_boss and effect.pos.distance_squared_to(current_boss.pos) < 150**2:
                                     current_boss.hp -= 5
                                     milestone_val = current_boss.max_hp * 0.1

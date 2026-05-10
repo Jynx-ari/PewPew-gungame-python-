@@ -53,11 +53,14 @@ class Enemy:
         repulsion_force = pygame.Vector2(0, 0)
         for other in all_enemies:
             if other is not self:
-                dist = self.pos.distance_to(other.pos)
-                if dist < 50 and dist > 0:
-                    repel_dir = (self.pos - other.pos).normalize()
-                    strength = (50 - dist) / 50  # Stronger when closer
-                    repulsion_force += repel_dir * strength * 0.5  # Adjust multiplier as needed
+                # Use squared distance to avoid expensive sqrt()
+                diff = self.pos - other.pos
+                dist_sq = diff.length_squared()
+                if 0 < dist_sq < 2500: # 50^2 = 2500
+                    dist = math.sqrt(dist_sq)
+                    repel_dir = diff / dist
+                    strength = (50 - dist) / 50
+                    repulsion_force += repel_dir * strength * 0.5
 
         desired_vel += repulsion_force
 
@@ -111,15 +114,28 @@ class Boss(Enemy):
                     angle = (self.attack_timer * 10) % 360
                     vel = pygame.Vector2(math.cos(math.radians(angle)), math.sin(math.radians(angle))) * 6 * bullet_speed_mult
                     self.bullets.append(Bullet(self.pos, vel, lifetime=300, color=(255, 50, 100)))
-        elif self.stage == 2:  # Laser Sweeper
+        elif self.stage == 2:  # Homing Horde
+            if self.phase == 1:
+                if self.attack_timer % int(90 * rate_mult) == 0:
+                    for i in range(5):
+                        vel = pygame.Vector2(random.uniform(-1, 1), random.uniform(-1, 1)).normalize() * 4 * bullet_speed_mult
+                        self.bullets.append(Bullet(self.pos, vel, lifetime=300, color=(255, 50, 100)))
+            else:
+                # Phase 2/3: Ring of bullets
+                if self.attack_timer % int(150 * rate_mult) == 0:
+                    for i in range(16):
+                        angle = (i / 16) * 360
+                        vel = pygame.Vector2(math.cos(math.radians(angle)), math.sin(math.radians(angle))) * 4 * bullet_speed_mult
+                        self.bullets.append(Bullet(self.pos, vel, lifetime=300, color=(255, 50, 100)))
+        elif self.stage == 3:  # Laser Sweeper
             if self.phase == 1:
                 # Focus Pulse: Targeted tight-cone bursts that oscillate slightly
-                if self.attack_timer % int(60 * rate_mult) == 0:
+                if self.attack_timer % int(90 * rate_mult) == 0:
                     player_dir = (player_pos - self.pos).normalize()
                     base_angle = math.degrees(math.atan2(player_dir.y, player_dir.x))
                     oscillation = math.sin(self.attack_timer * 0.1) * 20
-                    for i in range(7):
-                        angle = base_angle + oscillation + (i - 3) * 5
+                    for i in range(5):
+                        angle = base_angle + oscillation + (i - 2) * 5
                         vel = pygame.Vector2(math.cos(math.radians(angle)), math.sin(math.radians(angle))) * 6 * bullet_speed_mult
                         self.bullets.append(Bullet(self.pos, vel, lifetime=300, color=(255, 50, 100)))
             elif self.phase == 2:
@@ -138,19 +154,6 @@ class Boss(Enemy):
                 if self.attack_timer % int(40 * rate_mult) == 0:
                     vel = (player_pos - self.pos).normalize() * 8 * bullet_speed_mult
                     self.bullets.append(Bullet(self.pos, vel, lifetime=300, color=(255, 50, 100)))
-        elif self.stage == 3:  # Homing Horde
-            if self.phase == 1:
-                if self.attack_timer % int(90 * rate_mult) == 0:
-                    for i in range(5):
-                        vel = pygame.Vector2(random.uniform(-1, 1), random.uniform(-1, 1)).normalize() * 4 * bullet_speed_mult
-                        self.bullets.append(Bullet(self.pos, vel, lifetime=300, color=(255, 50, 100)))
-            else:
-                # Phase 2/3: Ring of bullets
-                if self.attack_timer % int(150 * rate_mult) == 0:
-                    for i in range(16):
-                        angle = (i / 16) * 360
-                        vel = pygame.Vector2(math.cos(math.radians(angle)), math.sin(math.radians(angle))) * 4 * bullet_speed_mult
-                        self.bullets.append(Bullet(self.pos, vel, lifetime=300, color=(255, 50, 100)))
         elif self.stage == 4:  # Danmaku Dancer
             if self.phase == 1:
                 if self.attack_timer % int(100 * rate_mult) == 0:

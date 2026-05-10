@@ -43,12 +43,12 @@ def draw_hud(screen, font, score, hp, energy, current_weapon, weapon_names, expl
     # Weapon
     weapon_text = f"WEAPON: {weapon_names[current_weapon]}"
     weapon_color = COLOR_MAGENTA # Magenta
-    if score < EXPLOSION_POINT_MILESTONE:
-        weapon_text += f" (EXPLOSION @ {EXPLOSION_POINT_MILESTONE})"
-        weapon_color = COLOR_GREY
-    elif score < SPREAD_POINT_MILESTONE:
+    if score < SPREAD_POINT_MILESTONE:
         weapon_text += f" (SPREAD @ {SPREAD_POINT_MILESTONE})"
         weapon_color = (150, 200, 255)
+    elif score < EXPLOSION_POINT_MILESTONE:
+        weapon_text += f" (EXPLOSION @ {EXPLOSION_POINT_MILESTONE})"
+        weapon_color = COLOR_GREY
     screen.blit(font.render(weapon_text, True, weapon_color), (20, 160))
     
     # Ammo
